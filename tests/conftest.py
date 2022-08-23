@@ -32,6 +32,7 @@ def npu(exec_params):
         npu.reset()
     return npu
 
+
 # NOTE: Obsoleted. The `npu` fixture should be used instead.
 @pytest.fixture(scope="session")
 def sai(npu):
