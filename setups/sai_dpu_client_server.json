@@ -1,9 +1,8 @@
 {"DPU": [
   {
-    "alias": "vs",
+    "alias": "dash",
     "asic": "generic",
-    "target": "saivs",
-    "type": "vs",
+    "target": "bmv2",
     "sku": null,
     "mode": "client-server",
     "sai_server_ip": "172.17.0.3",

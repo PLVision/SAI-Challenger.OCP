@@ -32,14 +32,6 @@ def npu(exec_params):
         npu.reset()
     return npu
 
-@pytest.fixture(scope="session")
-def dpu(exec_params):
-    dpu = exec_params["setup"]["DPU"][0]
-    if dpu is not None:
-        dpu.reset()
-    return dpu
-    pass
-
 # NOTE: Obsoleted. The `npu` fixture should be used instead.
 @pytest.fixture(scope="session")
 def sai(npu):
