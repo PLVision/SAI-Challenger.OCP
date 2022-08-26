@@ -10,7 +10,7 @@ class SaiNpu(Sai):
     def __init__(self, exec_params):
         super().__init__(exec_params)
 
-        self.oid = "oid:0x0"
+        self.switch_oid = "oid:0x0"
         self.dot1q_br_oid = "oid:0x0"
         self.default_vlan_oid = "oid:0x0"
         self.default_vlan_id = "0"
@@ -22,6 +22,8 @@ class SaiNpu(Sai):
         self.hostif_map = None
         self.sku_config = None
 
+    def get_switch_id(self):
+        return self.switch_oid
     def init(self, attr):
         # Load SKU configuration if any
         if self.sku is not None:
@@ -38,27 +40,27 @@ class SaiNpu(Sai):
         sw_attr.append("SAI_SWITCH_ATTR_TYPE")
         sw_attr.append("SAI_SWITCH_TYPE_NPU")
 
-        self.oid = self.create(SaiObjType.SWITCH, sw_attr)
+        self.switch_oid = self.create(SaiObjType.SWITCH, sw_attr)
 
         # Default .1Q bridge
-        self.dot1q_br_oid = self.get(self.oid, ["SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID", "oid:0x0"]).oid()
+        self.dot1q_br_oid = self.get(self.switch_oid, ["SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID", "oid:0x0"]).oid()
         assert (self.dot1q_br_oid != "oid:0x0")
 
         # Default VLAN
-        self.default_vlan_oid = self.get(self.oid, ["SAI_SWITCH_ATTR_DEFAULT_VLAN_ID", "oid:0x0"]).oid()
+        self.default_vlan_oid = self.get(self.switch_oid, ["SAI_SWITCH_ATTR_DEFAULT_VLAN_ID", "oid:0x0"]).oid()
         assert (self.default_vlan_oid != "oid:0x0")
 
         self.default_vlan_id = self.get(self.default_vlan_oid, ["SAI_VLAN_ATTR_VLAN_ID", ""]).to_json()[1]
         assert (self.default_vlan_id != "0")
 
         # Default VRF
-        self.default_vrf_oid = self.get(self.oid, ["SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID", "oid:0x0"]).oid()
+        self.default_vrf_oid = self.get(self.switch_oid, ["SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID", "oid:0x0"]).oid()
         assert (self.default_vrf_oid != "oid:0x0")
 
         # Ports
-        port_num = self.get(self.oid, ["SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS", ""]).uint32()
+        port_num = self.get(self.switch_oid, ["SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS", ""]).uint32()
         if port_num > 0:
-            self.port_oids = self.get(self.oid,
+            self.port_oids = self.get(self.switch_oid,
                                      ["SAI_SWITCH_ATTR_PORT_LIST", self._make_list(port_num, "oid:0x0")]).oids()
 
             # .1Q bridge ports
@@ -90,7 +92,7 @@ class SaiNpu(Sai):
                        {
                            "bvid"      : vlan_oid,
                            "mac"       : mac,
-                           "switch_id" : self.oid
+                           "switch_id" : self.switch_oid
                        }
                    ),
                    [
@@ -104,7 +106,7 @@ class SaiNpu(Sai):
                        {
                            "bvid"      : vlan_oid,
                            "mac"       : mac,
-                           "switch_id" : self.oid
+                           "switch_id" : self.switch_oid
                        }),
                     do_assert)
 
@@ -148,7 +150,7 @@ class SaiNpu(Sai):
         self.create('SAI_OBJECT_TYPE_ROUTE_ENTRY:' + json.dumps(
                         {
                              "dest":      dest,
-                             "switch_id": self.oid,
+                             "switch_id": self.switch_oid,
                              "vr":        vrf_oid
                         }
                    ), attrs)
@@ -157,7 +159,7 @@ class SaiNpu(Sai):
         self.remove('SAI_OBJECT_TYPE_ROUTE_ENTRY:' + json.dumps(
                        {
                            "dest":      dest,
-                           "switch_id": self.oid,
+                           "switch_id": self.switch_oid,
                            "vr":        vrf_oid
                        })
                     )
