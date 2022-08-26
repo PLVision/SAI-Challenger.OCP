@@ -3,6 +3,7 @@
     "alias": "dash",
     "asic": "generic",
     "target": "bmv2",
+    "type": null,
     "sku": null,
     "mode": "client-server",
     "sai_server_ip": "172.17.0.3",
@@ -32,7 +33,7 @@
 ],
 
 "CONNECTIONS": {
-    "ptf->vs": [[0, 0],
+    "ptf->dash": [[0, 0],
                 [1, 1]
                ]
 }
