@@ -1,6 +1,7 @@
 import json
 
-from sai import Sai, SaiData, SaiObjType
+from sai_data import SaiData, SaiObjType
+from sai import Sai
 from sai_dataplane import SaiHostifDataPlane
 
 
@@ -38,7 +39,6 @@ class SaiNpu(Sai):
         sw_attr.append("SAI_SWITCH_TYPE_NPU")
 
         self.oid = self.create(SaiObjType.SWITCH, sw_attr)
-        self.rec2vid[self.oid] = self.oid
 
         # Default .1Q bridge
         self.dot1q_br_oid = self.get(self.oid, ["SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID", "oid:0x0"]).oid()
@@ -59,7 +59,7 @@ class SaiNpu(Sai):
         port_num = self.get(self.oid, ["SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS", ""]).uint32()
         if port_num > 0:
             self.port_oids = self.get(self.oid,
-                                     ["SAI_SWITCH_ATTR_PORT_LIST", self.make_list(port_num, "oid:0x0")]).oids()
+                                     ["SAI_SWITCH_ATTR_PORT_LIST", self._make_list(port_num, "oid:0x0")]).oids()
 
             # .1Q bridge ports
             status, data = self.get(self.dot1q_br_oid, ["SAI_BRIDGE_ATTR_PORT_LIST", "1:oid:0x0"], False)
@@ -68,7 +68,7 @@ class SaiNpu(Sai):
             assert (bport_num > 0)
 
             self.dot1q_bp_oids = self.get(self.dot1q_br_oid,
-                                         ["SAI_BRIDGE_ATTR_PORT_LIST", self.make_list(bport_num, "oid:0x0")]).oids()
+                                         ["SAI_BRIDGE_ATTR_PORT_LIST", self._make_list(bport_num, "oid:0x0")]).oids()
             assert (bport_num == len(self.dot1q_bp_oids))
 
         # Update SKU
@@ -84,55 +84,6 @@ class SaiNpu(Sai):
         self.cleanup()
         attr = []
         self.init(attr)
-
-    def flush_fdb_entries(self, attrs=None):
-        """
-        To flush all static entries, set SAI_FDB_FLUSH_ATTR_ENTRY_TYPE = SAI_FDB_FLUSH_ENTRY_TYPE_STATIC.
-        To flush both static and dynamic entries, then set SAI_FDB_FLUSH_ATTR_ENTRY_TYPE = SAI_FDB_FLUSH_ENTRY_TYPE_ALL.
-        The API uses AND operation when multiple attributes are specified:
-
-        1) Flush all entries in FDB table - Do not specify any attribute
-        2) Flush all entries by bridge port - Set SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID
-        3) Flush all entries by VLAN - Set SAI_FDB_FLUSH_ATTR_BV_ID with object id as vlan object
-        4) Flush all entries by bridge port and VLAN - Set SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID
-           and SAI_FDB_FLUSH_ATTR_BV_ID
-        5) Flush all static entries by bridge port and VLAN - Set SAI_FDB_FLUSH_ATTR_ENTRY_TYPE,
-           SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID, and SAI_FDB_FLUSH_ATTR_BV_ID
-        """
-        if attrs is None:
-            attrs = ["SAI_FDB_FLUSH_ATTR_ENTRY_TYPE", "SAI_FDB_FLUSH_ENTRY_TYPE_ALL"]
-        if type(attrs) != str:
-            attrs = json.dumps(attrs)
-        status = self.operate("SAI_OBJECT_TYPE_SWITCH:" + self.oid, attrs, "Sflush")
-        assert status[0].decode("utf-8") == 'Sflushresponse'
-        assert status[2].decode("utf-8") == 'SAI_STATUS_SUCCESS'
-
-    def clear_stats(self, obj, attrs, do_assert = True):
-        if obj.startswith("oid:"):
-            obj = self.vid_to_type(obj) + ":" + obj
-        if type(attrs) != str:
-            attrs = json.dumps(attrs)
-        status = self.operate(obj, attrs, "Sclear_stats")
-        status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS'
-        return status[2]
-
-    def get_stats(self, obj, attrs, do_assert = True):
-        if obj.startswith("oid:"):
-            obj = self.vid_to_type(obj) + ":" + obj
-        if type(attrs) != str:
-            attrs = json.dumps(attrs)
-        status = self.operate(obj, attrs, "Sget_stats")
-        status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS'
-
-        data = SaiData(status[1].decode("utf-8"))
-        if do_assert:
-            return data
-
-        return status[2], data
 
     def create_fdb(self, vlan_oid, mac, bp_oid, action = "SAI_PACKET_ACTION_FORWARD"):
         self.create('SAI_OBJECT_TYPE_FDB_ENTRY:' + json.dumps(
@@ -174,7 +125,7 @@ class SaiNpu(Sai):
         if status == "SAI_STATUS_SUCCESS":
             vlan_mbr_oids = data.oids()
         elif status == "SAI_STATUS_BUFFER_OVERFLOW":
-            oids = self.make_list(data.uint32(), "oid:0x0")
+            oids = self._make_list(data.uint32(), "oid:0x0")
             vlan_mbr_oids = self.get(vlan_oid, ["SAI_VLAN_ATTR_MEMBER_LIST", oids]).oids()
         else:
             assert status == "SAI_STATUS_SUCCESS"

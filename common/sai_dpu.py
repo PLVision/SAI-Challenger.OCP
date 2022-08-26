@@ -1,6 +1,7 @@
 import json
 
-from sai import Sai, SaiData, SaiObjType
+from sai_data import SaiData, SaiObjType
+from sai import Sai
 from sai_dataplane import SaiHostifDataPlane
 
 

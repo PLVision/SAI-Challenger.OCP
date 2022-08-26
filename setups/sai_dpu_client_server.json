@@ -6,6 +6,13 @@
     "sku": null,
     "mode": "client-server",
     "sai_server_ip": "172.17.0.3",
+    "driver": {
+        "type": "redis",
+        "config": {
+            "ip": "172.17.0.3",
+            "port": "6379"
+        }
+    },
     "port_groups": [{"1x10G": "Ethernet0", "init": "1x10G", "alias": 0},
                     {"1x10G": "Ethernet1", "init": "1x10G", "alias": 1}
                   ],
