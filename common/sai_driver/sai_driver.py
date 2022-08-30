@@ -7,19 +7,19 @@ class SaiDriver():
         raise NotImplementedError
 
     # CRUD
-    def create(self, obj, attrs, do_assert = True):
+    def create(self, obj_type, key = None, attrs = None):
         raise NotImplementedError
-    def remove(self, obj, do_assert = True):
+    def remove(self, oid = None, obj_type = None, key = None):
         raise NotImplementedError
-    def set(self, obj, attr, do_assert = True):
+    def set(self, oid = None, obj_type = None, key = None, attr = None):
         raise NotImplementedError
-    def get(self, obj, attrs, do_assert = True):
+    def get(self, oid = None, obj_type = None, key = None, attrs = None):
         raise NotImplementedError
 
     # Stats
-    def get_stats(self, obj, attrs, do_assert = True):
+    def get_stats(self, oid = None, obj_type = None, key = None, attrs = None):
         raise NotImplementedError
-    def clear_stats(self, obj, attrs, do_assert = True):
+    def clear_stats(self, oid = None, obj_type = None, key = None, attrs = None):
         raise NotImplementedError
 
     # Flush FDB
@@ -27,11 +27,11 @@ class SaiDriver():
         raise NotImplementedError
 
     # BULK
-    def bulk_create(self, obj, keys, attrs, do_assert = True):
+    def bulk_create(self, obj_type, keys = None, attrs = None):
         raise NotImplementedError
-    def bulk_remove(self, obj, keys, do_assert = True):
+    def bulk_remove(self, oids = None, obj_type = None, keys = None):
         raise NotImplementedError
-    def bulk_set(self, obj, keys, attrs, do_assert = True):
+    def bulk_set(self, oids = None, obj_type = None, keys = None, attrs = None):
         raise NotImplementedError
 
     # Host interface

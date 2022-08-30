@@ -118,8 +118,10 @@ class SaiData:
     def oid(self, idx = 1):
         value = self.to_json()[idx]
         if "oid:" in value:
+            return value[4:]
+        if "0x" in value:
             return value
-        return "oid:0x0"
+        return "0x0"
 
     def to_list(self, idx = 1):
         value = self.to_json()[idx]
@@ -129,8 +131,10 @@ class SaiData:
     def oids(self, idx = 1):
         value = self.to_list(idx)
         if len(value) > 0:
-            if "oid:" in value[0]:
-                return value
+            for idx, val in enumerate(value):
+                if "oid:" in val:
+                    value[idx] = val[4:]
+            return value
         return []
 
     def counters(self):
