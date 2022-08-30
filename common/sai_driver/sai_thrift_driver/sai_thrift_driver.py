@@ -8,6 +8,7 @@ from thrift.transport import TSocket, TTransport
 from sai import SaiObjType
 from sai_driver.sai_driver import SaiDriver
 from sai_driver.sai_thrift_driver.sai_thrift_status import SaiStatus
+from sai_object import SaiObject
 from sai_thrift import sai_rpc, sai_adapter, ttypes, sai_headers
 # noinspection PyPep8Naming
 from sai_thrift.ttypes import sai_thrift_exception as SaiThriftException
@@ -79,6 +80,9 @@ class SaiThriftDriver(SaiDriver):
     def get(self, oid=None, obj_type=None, key=None, attrs=()):
         return self._operate_attributes('get', attrs=attrs, oid=oid, obj_type=obj_type, key=key)
     # endregion CRUD
+
+    def create_object(self, obj_type, key=None, attrs=()):
+        return SaiObject(self, obj_type, key=key, attrs=attrs)
 
     @staticmethod
     def _form_obj_key(oid, obj_type_name, key):
