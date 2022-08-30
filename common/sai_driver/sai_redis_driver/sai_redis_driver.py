@@ -34,7 +34,7 @@ class SaiRedisDriver(SaiDriver):
         self.cache = {}
         self.rec2vid = {}
 
-        self.switch_oid = "oid:0x0"
+        self.switch_oid = "0x0"
 
     def cleanup(self):
         '''
@@ -88,81 +88,71 @@ class SaiRedisDriver(SaiDriver):
         self.loglevel_db.publish(sai_api + "_CHANNEL@3", "G")
 
     # CRUD
-    def create(self, obj, attrs, do_assert = True):
+    def create(self, obj_type, key, attrs):
+        assert type(obj_type) == SaiObjType
         vid = None
-        store_switch = False
-        if type(obj) == SaiObjType:
-            if obj == SaiObjType.SWITCH:
-                store_switch = True
-            vid = self.__alloc_vid(obj)
-            obj = "SAI_OBJECT_TYPE_" + obj.name + ":" + vid
+
+        object_id = "SAI_OBJECT_TYPE_" + obj_type.name + ":"
+        if key is not None:
+            object_id = object_id + json.dumps(key).replace(" ", "")
         else:
-            # NOTE: The sai_deserialize_route_entry() from sonic-sairedis does not tolerate
-            # spaces in the route entry key:
-            # {"dest":"0.0.0.0/0","switch_id":"oid:0x21000000000000","vr":"oid:0x3000000000022"}
-            # For more details, please refer to sai_deserialize_route_entry() implementation.
-            obj = obj.replace(" ", "")
+            vid = self.__alloc_vid(obj_type)
+            object_id = object_id + vid
+            if obj_type == SaiObjType.SWITCH:
+                self.switch_oid = vid
+
         if type(attrs) != str:
             attrs = json.dumps(attrs)
-        status = self.__operate(obj, attrs, "Screate")
-        if store_switch:
-            self.switch_oid = vid
+        status = self.__operate(object_id, attrs, "Screate")
         status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS', f"create({obj}, {attrs}) --> {status}"
-            return vid
 
-        return status[2], vid
+        assert status[2] == 'SAI_STATUS_SUCCESS', f"create({obj_type}, {key}, {attrs}) --> {status}"
+        return vid
 
-    def remove(self, obj, do_assert = True):
-        if obj.startswith("oid:"):
-            assert self.__vid_to_rid(obj), f"Unable to retrieve RID by VID {obj}"
-            obj = self.__vid_to_type(obj) + ":" + obj
-        assert obj.startswith("SAI_OBJECT_TYPE_")
-        obj = obj.replace(" ", "")
+    def _form_redis_style_object_id(self, oid = None, obj_type = None, key = None):
+        object_id = None
+        if oid is not None:
+            assert self.__vid_to_rid(oid), f"Unable to retrieve RID by VID {oid}"
+            object_id = self.__vid_to_type(oid) + ":oid:" + oid
+        elif obj_type is not None:
+            object_id = "SAI_OBJECT_TYPE_" + obj_type.name + ":"
+        if key is not None:
+            object_id = object_id + json.dumps(key).replace(" ", "")
+        return object_id
 
-        status = self.__operate(obj, "{}", "Dremove")
+    def remove(self, oid, obj_type, key):
+        object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
+
+        status = self.__operate(object_id, "{}", "Dremove")
         status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS', f"remove({obj}) --> {status}"
-        return status[2]
 
-    def set(self, obj, attr, do_assert = True):
-        if obj.startswith("oid:"):
-            assert self.__vid_to_rid(obj), f"Unable to retrieve RID by VID {obj}"
-            obj = self.__vid_to_type(obj) + ":" + obj
-        assert obj.startswith("SAI_OBJECT_TYPE_")
-        obj = obj.replace(" ", "")
+        assert status[2] == 'SAI_STATUS_SUCCESS', f"remove({oid}, {obj_type}, {key}) --> {status}"
+
+    def set(self, oid, obj_type, key, attr):
+        object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
 
         if type(attr) != str:
             attr = json.dumps(attr)
-        status = self.__operate(obj, attr, "Sset")
-        status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS', f"set({obj}, {attr}) --> {status}"
-        return status[2]
 
-    def get(self, obj, attrs, do_assert = True):
-        if obj.startswith("oid:"):
-            assert self.__vid_to_rid(obj), f"Unable to retrieve RID by VID {obj}"
-            obj = self.__vid_to_type(obj) + ":" + obj
-        assert obj.startswith("SAI_OBJECT_TYPE_")
-        obj = obj.replace(" ", "")
+        status = self.__operate(object_id, attr, "Sset")
+        status[2] = status[2].decode("utf-8")
+
+        assert status[2] == 'SAI_STATUS_SUCCESS', f"set({oid}, {obj_type}, {key}, {attr}) --> {status}"
+
+    def get(self, oid, obj_type, key, attrs, do_assert = True):
+        object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
 
         if type(attrs) != str:
             attrs = json.dumps(attrs)
-        status = self.__operate(obj, attrs, "Sget")
+
+        status = self.__operate(object_id, attrs, "Sget")
         status[2] = status[2].decode("utf-8")
 
         if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS', f"get({obj}, {attrs}) --> {status}"
+            assert status[2] == 'SAI_STATUS_SUCCESS', f"get({oid}, {obj_type}, {key}, {attrs}) --> {status}"
+            return SaiData(status[1].decode("utf-8"))
 
-        data = SaiData(status[1].decode("utf-8"))
-        if do_assert:
-            return data
-
-        return status[2], data
-
+        return status[2], SaiData(status[1].decode("utf-8"))
 
     # BULK
     def bulk_create(self, obj, keys, attrs, do_assert = True):
@@ -385,32 +375,29 @@ class SaiRedisDriver(SaiDriver):
         return status[2], entry_status
 
     # Stats
-    def get_stats(self, obj, attrs, do_assert = True):
-        if obj.startswith("oid:"):
-            obj = self.__vid_to_type(obj) + ":" + obj
+    def get_stats(self, oid, obj_type, attrs):
+        object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
+
         if type(attrs) != str:
             attrs = json.dumps(attrs)
+
         status = self.__operate(obj, attrs, "Sget_stats")
         status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS'
 
-        data = SaiData(status[1].decode("utf-8"))
-        if do_assert:
-            return data
+        assert status[2] == 'SAI_STATUS_SUCCESS'
 
-        return status[2], data
+        return SaiData(status[1].decode("utf-8"))
 
     def clear_stats(self, obj, attrs, do_assert = True):
-        if obj.startswith("oid:"):
-            obj = self.__vid_to_type(obj) + ":" + obj
+        object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
+
         if type(attrs) != str:
             attrs = json.dumps(attrs)
+
         status = self.__operate(obj, attrs, "Sclear_stats")
         status[2] = status[2].decode("utf-8")
-        if do_assert:
-            assert status[2] == 'SAI_STATUS_SUCCESS'
-        return status[2]
+
+        assert status[2] == 'SAI_STATUS_SUCCESS'
 
     # Flush FDB
     def flush_fdb_entries(self, attrs=None):
@@ -431,7 +418,7 @@ class SaiRedisDriver(SaiDriver):
             attrs = ["SAI_FDB_FLUSH_ATTR_ENTRY_TYPE", "SAI_FDB_FLUSH_ENTRY_TYPE_ALL"]
         if type(attrs) != str:
             attrs = json.dumps(attrs)
-        status = self.__operate("SAI_OBJECT_TYPE_SWITCH:" + self.switch_oid, attrs, "Sflush")
+        status = self.__operate("SAI_OBJECT_TYPE_SWITCH:oid:" + self.switch_oid, attrs, "Sflush")
         assert status[0].decode("utf-8") == 'Sflushresponse'
         assert status[2].decode("utf-8") == 'SAI_STATUS_SUCCESS'
 
@@ -648,14 +635,14 @@ class SaiRedisDriver(SaiDriver):
                 vid = 0
         if vid is None:
             vid = self.r.incr("VIDCOUNTER")
-        return "oid:" + hex((obj_type.value << 48) | vid)
+        return hex((obj_type.value << 48) | vid)
 
     def __vid_to_rid(self, vid):
-        assert vid.startswith("oid:"), f"Invalid VID format {vid}"
-        rid = self.r.hget("VIDTORID", vid)
+        assert vid.startswith("0x"), f"Invalid VID format {vid}"
+        rid = self.r.hget("VIDTORID", "oid:" + vid)
         if rid is not None:
-            rid = rid.decode("utf-8")
-            assert rid.startswith("oid:"), f"Invalid RID format {vid}"
+            rid = rid.decode("utf-8")[len("oid:"):]
+            assert rid.startswith("0x"), f"Invalid RID format {rid}"
         return rid
 
     def __asser_syncd_running(self, tout=30):
@@ -783,6 +770,12 @@ class SaiRedisDriver(SaiDriver):
         # Required by sai_serialize_route_entry() in sairedis.
         obj = obj.replace(' ', '')
 
+        # Make redis-style OIDs
+        obj = obj.replace('oid:0x', '0x')
+        obj = obj.replace('0x', 'oid:0x')
+        attrs = attrs.replace('oid:0x', '0x')
+        attrs = attrs.replace('0x', 'oid:0x')
+
         self.r.lpush("ASIC_STATE_KEY_VALUE_OP_QUEUE", obj, attrs, op)
         self.r.publish("ASIC_STATE_CHANNEL@1", "G")
 
@@ -806,5 +799,5 @@ class SaiRedisDriver(SaiDriver):
 
     @staticmethod
     def __vid_to_type(vid):
-        obj_type = int(vid[4:], 16) >> 48
+        obj_type = int(vid, 16) >> 48
         return "SAI_OBJECT_TYPE_" + SaiObjType(obj_type).name

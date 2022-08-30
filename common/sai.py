@@ -32,19 +32,19 @@ class Sai(AbstractEntity):
         return self.driver.set_loglevel(sai_api, loglevel)
 
     # CRUD
-    def create(self, obj, attrs, do_assert = True):
-        return self.driver.create(obj, attrs, do_assert)
+    def create(self, obj_type, key = None, attrs = None):
+        return self.driver.create(obj_type, key, attrs)
 
-    def remove(self, obj, do_assert = True):
-        return self.driver.remove(obj, do_assert)
+    def remove(self, oid = None, obj_type = None, key = None):
+        return self.driver.remove(oid, obj_type, key)
 
-    def set(self, obj, attr, do_assert = True):
-        return self.driver.set(obj, attr, do_assert)
+    def set(self, oid = None, obj_type = None, key = None, attr = None):
+        return self.driver.set(oid, obj_type, key, attr)
 
-    def get(self, obj, attrs, do_assert = True):
-        return self.driver.get(obj, attrs, do_assert)
+    def get(self, oid = None, obj_type = None, key = None, attrs = None, do_assert=True):
+        return self.driver.get(oid, obj_type, key, attrs, do_assert)
 
-    # BULK
+    # BULK (TODO remove do_assert, "oid:" and handle oid
     def bulk_create(self, obj, keys, attrs, do_assert = True):
         return self.driver.bulk_create(obj, keys, attrs, do_assert)
 
@@ -55,11 +55,11 @@ class Sai(AbstractEntity):
         return self.driver.bulk_set(obj, keys, attrs, do_assert)
 
     # Stats
-    def get_stats(self, obj, attrs, do_assert = True):
-        return self.driver.get_stats(obj, attrs, do_assert)
+    def get_stats(self, oid = None, obj_type = None, key = None, attrs = None):
+        return self.driver.get_stats(oid, obj_type, key, attrs)
 
-    def clear_stats(self, obj, attrs, do_assert = True):
-        return self.driver.clear_stats(obj, attrs, do_assert)
+    def clear_stats(self, oid = None, obj_type = None, key = None, attrs = None):
+        return self.driver.clear_stats(oid, obj_type, key, attrs)
 
     # Flush FDB
     def flush_fdb_entries(self, attrs=None):
@@ -121,64 +121,64 @@ class Sai(AbstractEntity):
                 return attr[1]
         return None
 
-    def get_by_type(self, obj, attr, attr_type, do_assert = True):
+    def get_by_type(self, obj, attr, attr_type):
         # TODO: Check how to map these types into the struct or list
         unsupported_types = [
                                 "sai_port_eye_values_list_t", "sai_prbs_rx_state_t",
                                 "sai_port_err_status_list_t", "sai_fabric_port_reachability_t"
                             ]
         if attr_type == "sai_object_list_t":
-            status, data = self.get(obj, [attr, "1:oid:0x0"], do_assert)
+            status, data = self.get(obj, [attr, "1:0x0"])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
-                status, data = self.get(obj, [attr, self._make_list(data.uint32(), "oid:0x0")], do_assert)
+                status, data = self.get(obj, [attr, self._make_list(data.uint32(), "0x0")])
         elif attr_type == "sai_s32_list_t" or attr_type == "sai_u32_list_t" or \
                 attr_type == "sai_s16_list_t" or attr_type == "sai_u16_list_t" or\
                 attr_type == "sai_s8_list_t" or attr_type == "sai_u8_list_t" or attr_type == "sai_vlan_list_t":
-            status, data = self.get(obj, [attr, "1:0"], do_assert)
+            status, data = self.get(obj, [attr, "1:0"])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
-                status, data = self.get(obj, [attr, self._make_list(data.uint32(), "0")], do_assert)
+                status, data = self.get(obj, [attr, self._make_list(data.uint32(), "0")])
         elif attr_type == "sai_acl_capability_t":
-            status, data = self.get(obj, [attr, self._make_acl_list(1)], do_assert)
+            status, data = self.get(obj, [attr, self._make_acl_list(1)])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
                 # extract number of actions supported for the stage
                 # e.g. ["SAI_SWITCH_ATTR_ACL_STAGE_EGRESS","true:51"] -> 51
                 length = int(data.to_json()[1].split(":")[1])
-                status, data = self.get(obj, [attr, self._make_acl_list(length)], do_assert)
+                status, data = self.get(obj, [attr, self._make_acl_list(length)])
         elif attr_type == "sai_acl_resource_list_t":
-            status, data = self.get(obj, [attr, self._make_acl_resource_list(1)], do_assert)
+            status, data = self.get(obj, [attr, self._make_acl_resource_list(1)])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
                 # extract number of actions supported for the stage
                 # e.g. ['SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE', '{"count":10,"list":null}'] -> 10
                 length = json.loads(data.to_json()[1])["count"]
-                status, data = self.get(obj, [attr, self._make_acl_resource_list(length)], do_assert)
+                status, data = self.get(obj, [attr, self._make_acl_resource_list(length)])
         elif attr_type == "sai_map_list_t":
-            status, data = self.get(obj, [attr, self._make_map_list(1)], do_assert)
+            status, data = self.get(obj, [attr, self._make_map_list(1)])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
                 length = json.loads(data.to_json()[1])["count"]
-                status, data = self.get(obj, [attr, self._make_map_list(length)], do_assert)
+                status, data = self.get(obj, [attr, self._make_map_list(length)])
         elif attr_type == "sai_system_port_config_list_t":
-            status, data = self.get(obj, [attr, self._make_system_port_config_list(1)], do_assert)
+            status, data = self.get(obj, [attr, self._make_system_port_config_list(1)])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
                 length = json.loads(data.to_json()[1])["count"]
-                status, data = self.get(obj, [attr, self._make_system_port_config_list(length)], do_assert)
+                status, data = self.get(obj, [attr, self._make_system_port_config_list(length)])
         elif attr_type == "sai_object_id_t":
-            status, data = self.get(obj, [attr, "oid:0x0"], do_assert)
+            status, data = self.get(obj, [attr, "0x0"])
         elif attr_type == "bool":
-            status, data = self.get(obj, [attr, "true"], do_assert)
+            status, data = self.get(obj, [attr, "true"])
         elif attr_type == "sai_mac_t":
-            status, data = self.get(obj, [attr, "00:00:00:00:00:00"], do_assert)
+            status, data = self.get(obj, [attr, "00:00:00:00:00:00"])
         elif attr_type == "sai_ip_address_t":
-            status, data = self.get(obj, [attr, "0.0.0.0"], do_assert)
+            status, data = self.get(obj, [attr, "0.0.0.0"])
         elif attr_type == "sai_ip4_t":
-            status, data = self.get(obj, [attr, "0.0.0.0&mask:0.0.0.0"], do_assert)
+            status, data = self.get(obj, [attr, "0.0.0.0&mask:0.0.0.0"])
         elif attr_type == "sai_ip6_t":
-            status, data = self.get(obj, [attr, "::0.0.0.0&mask:0:0:0:0:0:0:0:0"], do_assert)
+            status, data = self.get(obj, [attr, "::0.0.0.0&mask:0:0:0:0:0:0:0:0"])
         elif attr_type == "sai_u32_range_t" or attr_type == "sai_s32_range_t":
-            status, data = self.get(obj, [attr, "0,0"], do_assert)
+            status, data = self.get(obj, [attr, "0,0"])
         elif attr_type in unsupported_types:
             status, data = "not supported", None
         elif attr_type.startswith("sai_") or attr_type == "" or attr_type == "char":
-            status, data = self.get(obj, [attr, ""], do_assert)
+            status, data = self.get(obj, [attr, ""])
         else:
             assert False, f"Unsupported attribute type: get_by_type({obj}, {attr}, {attr_type})"
         return status, data
