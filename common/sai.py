@@ -1,19 +1,94 @@
 import json
 import os
-import time
 
 import pytest
 
-from sai_data import SaiObjType, SaiData
 from sai_abstractions import AbstractEntity
+from sai_data import SaiObjType
 from sai_driver.sai_driver import SaiDriverBuilder
 
+
 class Sai(AbstractEntity):
-    # TODO: rename exec_params to setup_dict or so
+    class CommandProcessor:
+        def __init__(self, sai: 'Sai', ):
+            self.object_registry = {}
+            self.sai = sai
+
+        def _substitute_from_object_registry(self, obj):
+            return self.object_registry[obj[1:]] if isinstance(obj, str) and obj.startswith('$') else obj
+
+        def substitute_command_from_object_registry(self, command):
+            substituted_command = {}
+            key = command.get("key")
+            if key is not None:
+                substituted_key = None
+                if isinstance(key, dict):
+                    substituted_key = {}
+                    for key_name, key_value in key.items():
+                        substituted_key[key_name] = self._substitute_from_object_registry(key_value)
+                elif isinstance(key, str):
+                    substituted_key = self._substitute_from_object_registry(key)
+                substituted_command["key"] = substituted_key
+
+            attributes = command.get("attributes", [])
+            if attributes:
+                substituted_command["attributes"] = list(map(self.substitute_command_from_object_registry, attributes))
+
+            for key in set(command.keys()) - {"key", "attributes"}:
+                substituted_command[key] = command[key]
+            return substituted_command
+
+
+        def process_command(self, command):
+            '''
+            Command examples:
+                {
+                    "OP" : "create",
+                    "type" : "OBJECT_TYPE_VIP_ENTRY",
+                    "key" : {
+                        "switch_id" : "$SWITCH_ID",
+                        "vip" : "192.168.0.1"
+                    },
+                    "attributes" : [ "SAI_VIP_ENTRY_ATTR_ACTION", "SAI_VIP_ENTRY_ACTION_ACCEPT" ]
+                }
+
+                {
+                    "OP" : "create",
+                    "type" : "SAI_OBJECT_TYPE_DASH_ACL_GROUP",
+                    "key": "$acl_in_1",
+                    "attributes" : [ "SAI_DASH_ACL_GROUP_ATTR_IP_ADDR_FAMILY", "SAI_IP_ADDR_FAMILY_IPV4" ]
+                },
+            '''
+            command = self.substitute_command_from_object_registry(command)
+
+            store_name = command.get("name")
+            operation = command.get("OP", 'create')
+            attrs = command.get("attributes", [])
+            obj_type = command.get("type")
+            obj_key = command.get("key")
+
+            if operation == "create":
+                obj = self.sai.create(obj_type=obj_type, key=obj_key, attrs=attrs)
+                if isinstance(store_name, str):  # Store to the DB
+                    self.object_registry[store_name] = obj
+                return obj
+
+            elif operation == "remove":
+                remove_kwargs = dict(obj_type=obj_type, key=obj_key) if isinstance(obj_key, dict) else dict(oid=obj_key)
+
+                if store_name is not None:  # remove from the DB
+                    del self.object_registry[store_name]
+                return self.sai.remove(**remove_kwargs)
+
+            elif operation in {"get", "set"}:
+                op_kwargs = dict(obj_type=obj_type, key=obj_key) if isinstance(obj_key, dict) else dict(oid=obj_key)
+                return getattr(self.sai, operation)(**op_kwargs, attrs=attrs)
+
+
     def __init__(self, exec_params):
         super().__init__(exec_params)
         self.driver = SaiDriverBuilder(exec_params["driver"])
-
+        self.command_processor = self.CommandProcessor(self)
         # what is it?
         self.alias = exec_params['alias']
         self.client_mode = not os.path.isfile("/usr/bin/redis-server")
@@ -76,7 +151,7 @@ class Sai(AbstractEntity):
         return self.driver.remote_iface_status_set(iface, status)
 
     def remote_iface_agent_start(self, ifaces):
-        return self.driver.remote_iface_agent_start(iface)
+        return self.driver.remote_iface_agent_start(ifaces)
 
     def remote_iface_agent_stop(self):
         return self.driver.remote_iface_agent_stop()

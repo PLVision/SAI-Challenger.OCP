@@ -1,4 +1,4 @@
-class SaiDriver():
+class SaiDriver:
     def __init__(self, driver_config):
         raise NotImplementedError
     def cleanup(self):
@@ -52,6 +52,6 @@ def SaiDriverBuilder(params):
         from sai_driver.sai_redis_driver.sai_redis_driver import SaiRedisDriver
         driver = SaiRedisDriver(params["config"])
     elif params["type"] == "thrift":
-        from sai_thrift_driver import SaiThriftDriver
-        driver = SaiThriftDirver(params["config"])
+        from sai_driver.sai_thrift_driver.sai_thrift_driver import SaiThriftDriver
+        driver = SaiThriftDriver(params["config"])
     return driver
