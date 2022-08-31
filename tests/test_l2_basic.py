@@ -207,7 +207,7 @@ def test_l2_flood(npu, dataplane):
     macs = ['00:11:11:11:11:11', '00:22:22:22:22:22']
     vlan_mbr_oids = []
 
-    vlan_oid = npu.create(oid=SaiObjType.VLAN, attrs=["SAI_VLAN_ATTR_VLAN_ID", vlan_id])
+    vlan_oid = npu.create(obj_type=SaiObjType.VLAN, attrs=["SAI_VLAN_ATTR_VLAN_ID", vlan_id])
 
     for idx in range(3):
         npu.remove_vlan_member(npu.default_vlan_oid, npu.dot1q_bp_oids[idx])

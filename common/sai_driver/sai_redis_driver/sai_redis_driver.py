@@ -104,7 +104,6 @@ class SaiRedisDriver(SaiDriver):
         if type(attrs) != str:
             attrs = json.dumps(attrs)
         status = self.__operate(object_id, attrs, "Screate")
-        status[2] = status[2].decode("utf-8")
 
         assert status[2] == 'SAI_STATUS_SUCCESS', f"create({obj_type}, {key}, {attrs}) --> {status}"
         return vid
@@ -124,7 +123,6 @@ class SaiRedisDriver(SaiDriver):
         object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
 
         status = self.__operate(object_id, "{}", "Dremove")
-        status[2] = status[2].decode("utf-8")
 
         assert status[2] == 'SAI_STATUS_SUCCESS', f"remove({oid}, {obj_type}, {key}) --> {status}"
 
@@ -135,7 +133,6 @@ class SaiRedisDriver(SaiDriver):
             attr = json.dumps(attr)
 
         status = self.__operate(object_id, attr, "Sset")
-        status[2] = status[2].decode("utf-8")
 
         assert status[2] == 'SAI_STATUS_SUCCESS', f"set({oid}, {obj_type}, {key}, {attr}) --> {status}"
 
@@ -146,13 +143,12 @@ class SaiRedisDriver(SaiDriver):
             attrs = json.dumps(attrs)
 
         status = self.__operate(object_id, attrs, "Sget")
-        status[2] = status[2].decode("utf-8")
 
         if do_assert:
             assert status[2] == 'SAI_STATUS_SUCCESS', f"get({oid}, {obj_type}, {key}, {attrs}) --> {status}"
-            return SaiData(status[1].decode("utf-8"))
+            return SaiData(status[1])
 
-        return status[2], SaiData(status[1].decode("utf-8"))
+        return status[2], SaiData(status[1])
 
     # BULK
     def bulk_create(self, obj, keys, attrs, do_assert = True):
@@ -220,14 +216,11 @@ class SaiRedisDriver(SaiDriver):
 
         status = self.__operate(key, json.dumps(values), "Sbulkcreate")
 
-        status[1] = status[1].decode("utf-8")
         status[1] = json.loads(status[1])
         entry_status = []
         for i, v in enumerate(status[1]):
             if i % 2 == 0:
                 entry_status.append(v)
-
-        status[2] = status[2].decode("utf-8")
 
         if do_assert:
             print(entry_status)
@@ -281,14 +274,11 @@ class SaiRedisDriver(SaiDriver):
 
         status = self.__operate(key, json.dumps(values), "Dbulkremove")
 
-        status[1] = status[1].decode("utf-8")
         status[1] = json.loads(status[1])
         entry_status = []
         for i, v in enumerate(status[1]):
             if i % 2 == 0:
                 entry_status.append(v)
-
-        status[2] = status[2].decode("utf-8")
 
         if do_assert:
             print(entry_status)
@@ -358,14 +348,11 @@ class SaiRedisDriver(SaiDriver):
 
         status = self.__operate(key, json.dumps(values), "Sbulkset")
 
-        status[1] = status[1].decode("utf-8")
         status[1] = json.loads(status[1])
         entry_status = []
         for i, v in enumerate(status[1]):
             if i % 2 == 0:
                 entry_status.append(v)
-
-        status[2] = status[2].decode("utf-8")
 
         if do_assert:
             print(entry_status)
@@ -382,11 +369,10 @@ class SaiRedisDriver(SaiDriver):
             attrs = json.dumps(attrs)
 
         status = self.__operate(obj, attrs, "Sget_stats")
-        status[2] = status[2].decode("utf-8")
 
         assert status[2] == 'SAI_STATUS_SUCCESS'
 
-        return SaiData(status[1].decode("utf-8"))
+        return SaiData(status[1])
 
     def clear_stats(self, obj, attrs, do_assert = True):
         object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
@@ -395,7 +381,6 @@ class SaiRedisDriver(SaiDriver):
             attrs = json.dumps(attrs)
 
         status = self.__operate(obj, attrs, "Sclear_stats")
-        status[2] = status[2].decode("utf-8")
 
         assert status[2] == 'SAI_STATUS_SUCCESS'
 
@@ -419,8 +404,8 @@ class SaiRedisDriver(SaiDriver):
         if type(attrs) != str:
             attrs = json.dumps(attrs)
         status = self.__operate("SAI_OBJECT_TYPE_SWITCH:oid:" + self.switch_oid, attrs, "Sflush")
-        assert status[0].decode("utf-8") == 'Sflushresponse'
-        assert status[2].decode("utf-8") == 'SAI_STATUS_SUCCESS'
+        assert status[0] == 'Sflushresponse'
+        assert status[2] == 'SAI_STATUS_SUCCESS'
 
     # Host interface
     def remote_iface_exists(self, iface):
@@ -795,6 +780,9 @@ class SaiRedisDriver(SaiDriver):
         self.r.delete("GETRESPONSE_KEY_VALUE_OP_QUEUE")
 
         assert len(status) == 3, "SAI \"{}\" operation failure!".format(op)
+        status[0] = status[0].decode("utf-8")
+        status[1] = status[1].decode("utf-8").replace('oid:0x', '0x')
+        status[2] = status[2].decode("utf-8")
         return status
 
     @staticmethod
