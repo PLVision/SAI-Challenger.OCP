@@ -66,8 +66,6 @@ class SaiNpu(Sai):
             # .1Q bridge ports
             status, data = self.get(oid=self.dot1q_br_oid, attrs=["SAI_BRIDGE_ATTR_PORT_LIST", "1:0x0"], do_assert=False)
             bport_num = data.uint32()
-            import pdb
-            pdb.set_trace()
             assert (status == "SAI_STATUS_BUFFER_OVERFLOW")
             assert (bport_num > 0)
 
@@ -123,7 +121,7 @@ class SaiNpu(Sai):
         assert vlan_oid.startswith("0x")
 
         vlan_mbr_oids = []
-        status, data = self.get(oid=vlan_oid, attrs=["SAI_VLAN_ATTR_MEMBER_LIST", "1:0x0"])
+        status, data = self.get(oid=vlan_oid, attrs=["SAI_VLAN_ATTR_MEMBER_LIST", "1:0x0"], do_assert=False)
         if status == "SAI_STATUS_SUCCESS":
             vlan_mbr_oids = data.oids()
         elif status == "SAI_STATUS_BUFFER_OVERFLOW":
