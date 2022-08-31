@@ -6,7 +6,6 @@
     "type": "vs",
     "sku": null,
     "mode": "client-server",
-    "sai_server_ip": "172.17.0.3",
     "driver": {
         "type": "redis",
         "config": {

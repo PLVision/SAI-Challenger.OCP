@@ -1,5 +1,5 @@
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "OBJECT_TYPE_VIP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -8,7 +8,7 @@
     "attributes" : [ "SAI_VIP_ENTRY_ATTR_ACTION", "SAI_VIP_ENTRY_ACTION_ACCEPT" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_DIRECTION_LOOKUP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -17,25 +17,25 @@
     "attributes" : [ "SAI_DIRECTION_LOOKUP_ENTRY_ATTR_ACTION", "SAI_DIRECTION_LOOKUP_ENTRY_ACTION_SET_OUTBOUND_DIRECTION" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_DASH_ACL_GROUP",
     "key": "$acl_in_1",
     "attributes" : [ "SAI_DASH_ACL_GROUP_ATTR_IP_ADDR_FAMILY", "SAI_IP_ADDR_FAMILY_IPV4" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_DASH_ACL_GROUP",
     "key": "$acl_out_1",
     "attributes" : [ "SAI_DASH_ACL_GROUP_ATTR_IP_ADDR_FAMILY", "SAI_IP_ADDR_FAMILY_IPV4" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_VNET",
     "key" : "$vnet_1",
     "attributes" : [ "SAI_VNET_ATTR_VNI", "2000" ]
 },
 {
-    "action": "create",
+    "op": "create",
     "type" : "SAI_OBJECT_TYPE_ENI",
     "key" : "$eni_id",
     "attributes" : [ "SAI_ENI_ATTR_CPS", "10000",
@@ -67,7 +67,7 @@
                      "SAI_ENI_ATTR_OUTBOUND_V6_STAGE5_DASH_ACL_GROUP_ID", "0" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_ENI_ETHER_ADDRESS_MAP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -76,7 +76,7 @@
     "attributes" : [ "SAI_ENI_ETHER_ADDRESS_MAP_ENTRY_ATTR_ENI_ID", "$eni_id" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_INBOUND_ROUTING_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -85,7 +85,7 @@
     "attributes" : [ "SAI_INBOUND_ROUTING_ENTRY_ATTR_ACTION", "SAI_INBOUND_ROUTING_ENTRY_ACTION_VXLAN_DECAP_PA_VALIDATE" ]
 },
 {
-    "action" : "create",
+    "op" : "create",
     "type" : "SAI_OBJECT_TYPE_PA_VALIDATION_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -99,7 +99,7 @@
 
 
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_PA_VALIDATION_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -109,7 +109,7 @@
     }
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_INBOUND_ROUTING_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -117,7 +117,7 @@
     }
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_ENI_ETHER_ADDRESS_MAP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -125,27 +125,27 @@
     }
 },
 {
-    "action": "remove",
+    "op": "remove",
     "type" : "SAI_OBJECT_TYPE_ENI",
     "key" : "$eni_id"
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_VNET",
     "key" : "$vnet_1"
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_DASH_ACL_GROUP",
     "key": "$acl_out_1"
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_DASH_ACL_GROUP",
     "key": "$acl_in_1"
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "SAI_OBJECT_TYPE_DIRECTION_LOOKUP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
@@ -153,7 +153,7 @@
     }
 },
 {
-    "action" : "remove",
+    "op" : "remove",
     "type" : "OBJECT_TYPE_VIP_ENTRY",
     "key" : {
         "switch_id" : "$SWITCH_ID",
