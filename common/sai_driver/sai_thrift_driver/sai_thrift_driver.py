@@ -1,11 +1,12 @@
 from enum import Enum
 from functools import wraps
 from itertools import zip_longest
+from json import dumps as json_dumps
 
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
 
-from sai import SaiObjType
+from sai import SaiObjType, SaiData
 from sai_driver.sai_driver import SaiDriver
 from sai_driver.sai_thrift_driver.sai_thrift_status import SaiStatus
 from sai_object import SaiObject
@@ -78,7 +79,15 @@ class SaiThriftDriver(SaiDriver):
 
     @assert_status
     def get(self, oid=None, obj_type=None, key=None, attrs=()):
-        return self._operate_attributes('get', attrs=attrs, oid=oid, obj_type=obj_type, key=key)
+        obj_type_name = self._get_obj_type_name(oid, obj_type)
+
+        result = self._operate_attributes('get', attrs=attrs, oid=oid, obj_type=obj_type, key=key)
+
+        # TODO rework, because seems Redis specific
+        return SaiData(
+            json_dumps(list(zip((attr for attr, _ in self._convert_attrs(attrs, obj_type_name)), result)))
+        )
+
     # endregion CRUD
 
     def create_object(self, obj_type, key=None, attrs=()):
