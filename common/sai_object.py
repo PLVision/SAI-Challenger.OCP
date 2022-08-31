@@ -15,8 +15,8 @@ class SaiObject:
         self.oid = self.driver.create(obj_type=self.obj_type, key=self.key, attrs=attrs) if _init else None
 
     @classmethod
-    def init_by_existing_oid(cls, driver, oid):
-        instance = cls(driver, obj_type=driver.get_object_type(oid), _init=False)
+    def init_by_existing_oid(cls, driver, oid, obj_type=None):
+        instance = cls(driver, obj_type=driver.get_object_type(oid, default=obj_type), _init=False)
         instance.oid = oid
         return instance
 

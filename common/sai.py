@@ -4,13 +4,13 @@ import os
 import pytest
 
 from sai_abstractions import AbstractEntity
+from sai_client.sai_client import SaiClient
 from sai_data import SaiObjType
-from sai_driver.sai_driver import SaiDriverBuilder
 
 
 class Sai(AbstractEntity):
     class CommandProcessor:
-        def __init__(self, sai: 'Sai', ):
+        def __init__(self, sai: 'Sai'):
             self.object_registry = {}
             self.sai = sai
 
@@ -32,12 +32,11 @@ class Sai(AbstractEntity):
 
             attributes = command.get("attributes", [])
             if attributes:
-                substituted_command["attributes"] = list(map(self.substitute_command_from_object_registry, attributes))
+                substituted_command["attributes"] = list(map(self._substitute_from_object_registry, attributes))
 
             for key in set(command.keys()) - {"key", "attributes"}:
                 substituted_command[key] = command[key]
             return substituted_command
-
 
         def process_command(self, command):
             '''
@@ -62,7 +61,7 @@ class Sai(AbstractEntity):
             command = self.substitute_command_from_object_registry(command)
 
             store_name = command.get("name")
-            operation = command.get("OP", 'create')
+            operation = command.get("op", 'create')
             attrs = command.get("attributes", [])
             obj_type = command.get("type")
             obj_key = command.get("key")
@@ -84,10 +83,9 @@ class Sai(AbstractEntity):
                 op_kwargs = dict(obj_type=obj_type, key=obj_key) if isinstance(obj_key, dict) else dict(oid=obj_key)
                 return getattr(self.sai, operation)(**op_kwargs, attrs=attrs)
 
-
     def __init__(self, exec_params):
         super().__init__(exec_params)
-        self.driver = SaiDriverBuilder(exec_params["driver"])
+        self.sai_client = SaiClient.build(exec_params["client"])
         self.command_processor = self.CommandProcessor(self)
         # what is it?
         self.alias = exec_params['alias']
@@ -99,62 +97,76 @@ class Sai(AbstractEntity):
         self.target = exec_params["target"]
         self.sku = exec_params["sku"]
         self.asic_dir = exec_params["asic_dir"]
+        self._switch_oid = None
+
+    @property
+    def switch_oid(self):
+        return self._switch_oid
+
+    @switch_oid.setter
+    def switch_oid(self, value):
+        self.command_processor.object_registry['SWITCH_ID'] = value
+        self._switch_oid = value
+
+    def process_commands(self, commands):
+        for command in commands:
+            yield self.command_processor.process_command(command)
 
     def cleanup(self):
-        return self.driver.cleanup()
+        return self.sai_client.cleanup()
 
     def set_loglevel(self, sai_api, loglevel):
-        return self.driver.set_loglevel(sai_api, loglevel)
+        return self.sai_client.set_loglevel(sai_api, loglevel)
 
     # CRUD
-    def create(self, obj_type, key = None, attrs = None):
-        return self.driver.create(obj_type, key, attrs)
+    def create(self, obj_type, *, key=None, attrs=None):
+        return self.sai_client.create(obj_type, key=key, attrs=attrs)
 
-    def remove(self, oid = None, obj_type = None, key = None):
-        return self.driver.remove(oid, obj_type, key)
+    def remove(self, *, oid=None, obj_type=None, key=None):
+        return self.sai_client.remove(oid=oid, obj_type=obj_type, key=key)
 
-    def set(self, oid = None, obj_type = None, key = None, attr = None):
-        return self.driver.set(oid, obj_type, key, attr)
+    def set(self, *, oid=None, obj_type=None, key=None, attr=None):
+        return self.sai_client.set(oid=oid, obj_type=obj_type, key=key, attr=attr)
 
-    def get(self, oid = None, obj_type = None, key = None, attrs = None, do_assert=True):
-        return self.driver.get(oid, obj_type, key, attrs, do_assert)
+    def get(self, *, oid=None, obj_type=None, key=None, attrs=None, do_assert=True):
+        return self.sai_client.get(oid=oid, obj_type=obj_type, key=key, attrs=attrs, do_assert=do_assert)
 
     # BULK (TODO remove do_assert, "oid:" and handle oid
-    def bulk_create(self, obj, keys, attrs, do_assert = True):
-        return self.driver.bulk_create(obj, keys, attrs, do_assert)
+    def bulk_create(self, obj, keys, attrs, do_assert=True):
+        return self.sai_client.bulk_create(obj, keys, attrs, do_assert)
 
-    def bulk_remove(self, obj, keys, do_assert = True):
-        return self.driver.bulk_remove(obj, keys, do_assert)
+    def bulk_remove(self, obj, keys, do_assert=True):
+        return self.sai_client.bulk_remove(obj, keys, do_assert)
 
-    def bulk_set(self, obj, keys, attrs, do_assert = True):
-        return self.driver.bulk_set(obj, keys, attrs, do_assert)
+    def bulk_set(self, obj, keys, attrs, do_assert=True):
+        return self.sai_client.bulk_set(obj, keys, attrs, do_assert)
 
     # Stats
-    def get_stats(self, oid = None, obj_type = None, key = None, attrs = None):
-        return self.driver.get_stats(oid, obj_type, key, attrs)
+    def get_stats(self, oid=None, obj_type=None, key=None, attrs=None):
+        return self.sai_client.get_stats(oid, obj_type, key, attrs)
 
-    def clear_stats(self, oid = None, obj_type = None, key = None, attrs = None):
-        return self.driver.clear_stats(oid, obj_type, key, attrs)
+    def clear_stats(self, oid=None, obj_type=None, key=None, attrs=None):
+        return self.sai_client.clear_stats(oid, obj_type, key, attrs)
 
     # Flush FDB
     def flush_fdb_entries(self, attrs=None):
-        return self.driver.flush_fdb_entries(attrs)
+        return self.sai_client.flush_fdb_entries(attrs)
 
     # Host interface
     def remote_iface_exists(self, iface):
-        return self.driver.remote_iface_exists(iface)
+        return self.sai_client.remote_iface_exists(iface)
 
     def remote_iface_is_up(self, iface):
-        return self.driver.remote_iface_is_up(iface)
+        return self.sai_client.remote_iface_is_up(iface)
 
     def remote_iface_status_set(self, iface, status):
-        return self.driver.remote_iface_status_set(iface, status)
+        return self.sai_client.remote_iface_status_set(iface, status)
 
     def remote_iface_agent_start(self, ifaces):
-        return self.driver.remote_iface_agent_start(ifaces)
+        return self.sai_client.remote_iface_agent_start(ifaces)
 
     def remote_iface_agent_stop(self):
-        return self.driver.remote_iface_agent_stop()
+        return self.sai_client.remote_iface_agent_stop()
 
     # Used in tests
     @staticmethod
@@ -199,15 +211,15 @@ class Sai(AbstractEntity):
     def get_by_type(self, obj, attr, attr_type):
         # TODO: Check how to map these types into the struct or list
         unsupported_types = [
-                                "sai_port_eye_values_list_t", "sai_prbs_rx_state_t",
-                                "sai_port_err_status_list_t", "sai_fabric_port_reachability_t"
-                            ]
+            "sai_port_eye_values_list_t", "sai_prbs_rx_state_t",
+            "sai_port_err_status_list_t", "sai_fabric_port_reachability_t"
+        ]
         if attr_type == "sai_object_list_t":
             status, data = self.get(obj, [attr, "1:0x0"])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
                 status, data = self.get(obj, [attr, self._make_list(data.uint32(), "0x0")])
         elif attr_type == "sai_s32_list_t" or attr_type == "sai_u32_list_t" or \
-                attr_type == "sai_s16_list_t" or attr_type == "sai_u16_list_t" or\
+                attr_type == "sai_s16_list_t" or attr_type == "sai_u16_list_t" or \
                 attr_type == "sai_s8_list_t" or attr_type == "sai_u8_list_t" or attr_type == "sai_vlan_list_t":
             status, data = self.get(obj, [attr, "1:0"])
             if status == "SAI_STATUS_BUFFER_OVERFLOW":
@@ -269,7 +281,7 @@ class Sai(AbstractEntity):
         return data.to_list()
 
     def get_oids(self, obj_type=None):
-        return self.driver.get_oids(obj_type)
+        return self.sai_client.get_oids(obj_type)
 
     def assert_status_success(self, status, skip_not_supported=True, skip_not_implemented=True):
         if skip_not_supported:

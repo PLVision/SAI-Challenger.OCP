@@ -7,11 +7,11 @@
     "sku": null,
     "mode": "client-server",
     "sai_server_ip": "172.17.0.3",
-    "driver": {
-        "type": "redis",
+    "client": {
+        "type": "thrift",
         "config": {
-            "ip": "172.17.0.3",
-            "port": "6379"
+            "ip": "127.0.0.1",
+            "port": "9092"
         }
     },
     "port_groups": [{"1x10G": "Ethernet0", "init": "1x10G", "alias": 0},
@@ -26,8 +26,8 @@
     "alias": "ptf",
     "type": "ptf",
     "mode": "eth",
-    "port_groups": [{"10G": "dummy0", "init": "10G", "alias": 0},
-                    {"10G": "dummy1", "init": "10G", "alias": 1}
+    "port_groups": [{"10G": "veth1", "init": "10G", "alias": 0},
+                    {"10G": "veth2", "init": "10G", "alias": 1}
                    ]
   }
 ],

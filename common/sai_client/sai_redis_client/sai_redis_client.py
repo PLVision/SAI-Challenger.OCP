@@ -9,14 +9,14 @@ import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-from sai_driver.sai_driver import SaiDriver
+from sai_client.sai_client import SaiClient
 
 parentparentdir = os.path.dirname(parentdir)
 sys.path.insert(0, parentparentdir)
 
 from sai_data import SaiObjType, SaiData
 
-class SaiRedisDriver(SaiDriver):
+class SaiRedisClient(SaiClient):
 
     attempts = 40
 
