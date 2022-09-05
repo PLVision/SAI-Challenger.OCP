@@ -5,13 +5,10 @@ import os
 import sys
 import imp
 from pathlib import Path
-sys.path.insert(0, '/sai-challenger/common')
 
 # Setup JSON root keys
 CONNECTIONS = 'CONNECTIONS'
 SUPPORTED_SETUP_KEYS = ('DATAPLANE', 'NPU', 'DPU', CONNECTIONS)
-
-file_dir = Path(__file__).parent
 
 def init_setup(options):
 
