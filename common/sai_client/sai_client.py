@@ -59,7 +59,7 @@ class SaiClient:
         raise NotImplementedError
 
     @staticmethod
-    def build(params):
+    def build(params) -> 'SaiClient':
         if params["type"] == "redis":
             from sai_client.sai_redis_client.sai_redis_client import SaiRedisClient
             sai_client = SaiRedisClient(params["config"])

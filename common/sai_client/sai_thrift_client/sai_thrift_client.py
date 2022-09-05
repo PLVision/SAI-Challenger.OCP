@@ -2,19 +2,17 @@ import json
 import logging
 from functools import wraps
 from itertools import zip_longest
-
+from sai import SaiObjType
+from sai_client.sai_client import SaiClient
+from sai_client.sai_thrift_client.sai_thrift_status import SaiStatus
+from sai_data import SaiData
+from sai_object import SaiObject
 from sai_thrift import sai_rpc, sai_adapter, ttypes, sai_headers
 from sai_thrift.sai_headers import SAI_IP_ADDR_FAMILY_IPV6, SAI_IP_ADDR_FAMILY_IPV4
 # noinspection PyPep8Naming
 from sai_thrift.ttypes import sai_thrift_exception as SaiThriftException, sai_thrift_ip_addr_t, sai_thrift_ip_address_t
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
-
-from sai import SaiObjType
-from sai_client.sai_client import SaiClient
-from sai_client.sai_thrift_client.sai_thrift_status import SaiStatus
-from sai_data import SaiData
-from sai_object import SaiObject
 
 
 # TODO Add SAI to environment and use sai_utils.sai_ipaddress
@@ -92,11 +90,7 @@ class SaiThriftClient(SaiClient):
     @assert_status
     def create(self, obj_type, *, key=None, attrs=()):
         oid_or_status = self._operate('create', attrs=attrs, obj_type=obj_type, key=key)
-        if key is None:
-            oid = oid_or_status
-            return oid
-        else:
-            return key
+        return oid_or_status if key is None else key
 
     @assert_status
     def remove(self, *, oid=None, obj_type=None, key=None):
@@ -150,7 +144,17 @@ class SaiThriftClient(SaiClient):
         oid_id = cls.oid_to_int(oid) >> 48
         if oid_id == 0:
             if default is not None:
-                return default
+                if isinstance(default, SaiObjType):
+                    return default
+                else:
+                    if not isinstance(default, str):
+                        default = str(default)
+                    default = default.upper()
+                    prefix = 'SAI_OBJECT_TYPE_'
+                    if default.startswith(prefix):
+                        default = default[len(prefix):]
+                    return getattr(SaiObjType, default)
+
             else:
                 raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
         return SaiObjType(oid_id)

@@ -1,6 +1,6 @@
 import json
+import logging
 import os
-
 import pytest
 
 from sai_abstractions import AbstractEntity
@@ -10,29 +10,81 @@ from sai_data import SaiObjType
 
 class Sai(AbstractEntity):
     class CommandProcessor:
+        class SubstitutionError(RuntimeError):
+            ...
+
         def __init__(self, sai: 'Sai'):
-            self.object_registry = {}
+            self.objects_registry = {}
             self.sai = sai
 
-        def _substitute_from_object_registry(self, obj):
-            return self.object_registry[obj[1:]] if isinstance(obj, str) and obj.startswith('$') else obj
+        def _substitute_from_object_registry(self, obj, *args, **kwargs):
+            if isinstance(obj, str) and obj.startswith('$'):
+                store_name = obj[1:]
+                try:
+                    return self.objects_registry[store_name]
+                except KeyError as e:
+                    try:
+                        return args[0] if args else kwargs['default']
+                    except KeyError:
+                        raise self.SubstitutionError from e
+            else:
+                raise self.SubstitutionError
 
         def substitute_command_from_object_registry(self, command):
             substituted_command = {}
-            key = command.get("key")
+            store_name = command.get("name")
+
+            substituted_command['type'] = command.get(
+                "type",
+                self.objects_registry.get(store_name, dict(type=None))["type"]
+            )
+            substituted_command['key'] = command.get(
+                "key",
+                self.objects_registry.get(store_name, dict(key=None))["key"]
+            )
+
+            if substituted_command['key'] is None:
+                substituted_command['key'] = command.get(
+                    "key",
+                    self.objects_registry.get(store_name, dict(oid=None))["oid"]
+                )
+
+            # Substitute key
+            key = substituted_command['key']
             if key is not None:
-                substituted_key = None
+                substituted_key = key
                 if isinstance(key, dict):
                     substituted_key = {}
                     for key_name, key_value in key.items():
-                        substituted_key[key_name] = self._substitute_from_object_registry(key_value)
+                        try:
+                            obj = self._substitute_from_object_registry(key_value)
+                            substituted_key[key_name] = obj['oid'] if obj['oid'] is not None else obj['key']
+                        except self.SubstitutionError:
+                            substituted_key[key_name] = key_value
                 elif isinstance(key, str):
-                    substituted_key = self._substitute_from_object_registry(key)
+                    try:
+                        obj = self._substitute_from_object_registry(key)
+                        substituted_key = obj['oid'] if obj['oid'] is not None else obj['key']
+
+                        substituted_command['name'] = key[1:]
+                        substituted_command['type'] = obj['type']
+                    except self.SubstitutionError:
+                        substituted_key = key
+                elif isinstance(key, int):
+                    substituted_key = key
                 substituted_command["key"] = substituted_key
 
+            # Substitute attrs
             attributes = command.get("attributes", [])
             if attributes:
-                substituted_command["attributes"] = list(map(self._substitute_from_object_registry, attributes))
+                substituted_command["attributes"] = []
+                for attr in attributes:
+                    try:
+                        obj = self._substitute_from_object_registry(attr)
+                        substituted_key = obj['oid'] if obj['oid'] is not None else obj['key']
+                    except self.SubstitutionError:
+                        substituted_key = attr
+                    substituted_command["attributes"].append(substituted_key)
 
             for key in set(command.keys()) - {"key", "attributes"}:
                 substituted_command[key] = command[key]
@@ -69,19 +121,28 @@ class Sai(AbstractEntity):
             if operation == "create":
                 obj = self.sai.create(obj_type=obj_type, key=obj_key, attrs=attrs)
                 if isinstance(store_name, str):  # Store to the DB
-                    self.object_registry[store_name] = obj
+                    self.objects_registry[store_name] = {
+                        "type": obj_type,
+                        **(dict(oid=obj, key=None) if obj_key is None else dict(oid=None, key=obj))
+                    }
                 return obj
 
             elif operation == "remove":
-                remove_kwargs = dict(obj_type=obj_type, key=obj_key) if isinstance(obj_key, dict) else dict(oid=obj_key)
-
-                if store_name is not None:  # remove from the DB
-                    del self.object_registry[store_name]
-                return self.sai.remove(**remove_kwargs)
+                try:
+                    return self.sai.remove(
+                        obj_type=obj_type, **{"key" if isinstance(obj_key, dict) else "oid": obj_key}
+                    )
+                except Exception:
+                    logging.exception('Sai object removal failed', exc_info=True)
+                    raise
+                finally:
+                    if store_name is not None:  # remove from the DB
+                        del self.objects_registry[store_name]
 
             elif operation in {"get", "set"}:
-                op_kwargs = dict(obj_type=obj_type, key=obj_key) if isinstance(obj_key, dict) else dict(oid=obj_key)
-                return getattr(self.sai, operation)(**op_kwargs, attrs=attrs)
+                return getattr(self.sai, operation)(
+                    obj_type=obj_type, **{"key" if isinstance(obj_key, dict) else "oid": obj_key}, attrs=attrs
+                )
 
     def __init__(self, exec_params):
         super().__init__(exec_params)
@@ -105,7 +166,7 @@ class Sai(AbstractEntity):
 
     @switch_oid.setter
     def switch_oid(self, value):
-        self.command_processor.object_registry['SWITCH_ID'] = value
+        self.command_processor.objects_registry['SWITCH_ID'] = dict(type='SAI_OBJECT_TYPE_SWITCH', oid=value, key=None)
         self._switch_oid = value
 
     def process_commands(self, commands):
