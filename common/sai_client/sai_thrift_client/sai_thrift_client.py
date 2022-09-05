@@ -94,6 +94,24 @@ class SaiThriftClient(SaiClient):
         oid_or_status = self._operate('create', attrs=attrs, obj_type=obj_type, key=key)
         if key is None:
             oid = oid_or_status
+            try:
+                self.get_object_type(oid)
+            except ValueError:
+                logging.exception(f"Sai thrift has returned wrong oid: {oid}. It doesn't contain object type info")
+                if isinstance(obj_type, str):
+                    prefix = 'SAI_OBJECT_TYPE_'
+                    if obj_type.startswith(prefix):
+                        obj_type = obj_type[len(prefix):]
+                    obj_type = getattr(SaiObjType, obj_type)
+                elif isinstance(obj_type, int):
+                    obj_type = SaiObjType(obj_type)
+                elif isinstance(obj_type, SaiObjType):
+                    pass
+                else:
+                    raise ValueError(f'Unknown sai object type {obj_type}')
+                oid = (int(obj_type.value) << 48) + oid
+                logging.warn(f"Restored oid {oid}, object type {obj_type.name} obj with type info is set to {oid}")
+
             return oid
         else:
             return key
