@@ -170,8 +170,7 @@ class Sai(AbstractEntity):
         self._switch_oid = value
 
     def process_commands(self, commands):
-        for command in commands:
-            yield self.command_processor.process_command(command)
+        yield from map(self.command_processor.process_command, commands)
 
     def cleanup(self):
         return self.sai_client.cleanup()

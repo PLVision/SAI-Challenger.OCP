@@ -10,7 +10,12 @@ from sai_object import SaiObject
 from sai_thrift import sai_rpc, sai_adapter, ttypes, sai_headers
 from sai_thrift.sai_headers import SAI_IP_ADDR_FAMILY_IPV6, SAI_IP_ADDR_FAMILY_IPV4
 # noinspection PyPep8Naming
-from sai_thrift.ttypes import sai_thrift_exception as SaiThriftException, sai_thrift_ip_addr_t, sai_thrift_ip_address_t
+from sai_thrift.ttypes import (
+    sai_thrift_exception as SaiThriftException,
+    sai_thrift_ip_addr_t,
+    sai_thrift_ip_address_t,
+    sai_thrift_ip_prefix_t
+)
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
 
@@ -202,7 +207,12 @@ class SaiThriftClient(SaiClient):
 
         obj_key = self._form_obj_key(oid, obj_type_name, key)
         attr_kwargs = dict(self._convert_attrs(attrs, obj_type_name))
-        return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
+        try:
+            return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
+        except Exception:
+            import pdb
+            pdb.set_trace()
+
 
     def _unwrap_attr_thrift_dict_to_sai_challendger_list(self, sai_value):
         def _():
@@ -312,6 +322,30 @@ class SaiThriftClient(SaiClient):
 
         return dict(_())
 
+    @staticmethod
+    def _convert_outbound_routing_entry_key(key):
+        def _():
+            for item, value in key.items():
+                if item == 'destination':
+                    print('make prefix')
+                    yield item, sai_thrift_ip_prefix_t(addr_family=getattr(sai_headers, value['addr_family']),
+                                                       addr=sai_ipaddress(value['addr']),
+                                                       mask=sai_ipaddress(value['mask']))
+                else:
+                    yield item, value
+
+        return dict(_())
+
+    @staticmethod
+    def _convert_outbound_ca_to_pa_entry_key(key):
+        def _():
+            for item, value in key.items():
+                if item == 'dip':
+                    yield item, sai_ipaddress(value)
+                else:
+                    yield item, value
+
+        return dict(_())
     # endregion Convert object key
 
     # region Convert object attr
@@ -363,6 +397,15 @@ class SaiThriftClient(SaiClient):
     def _convert_vnet_attr(attr, value):
         if attr == "vni":
             return attr, int(value)
+        else:
+            return attr, value
+
+    @staticmethod
+    def _convert_outbound_ca_to_pa_entry_attr(attr, value):
+        if attr == "underlay_dip":
+            return attr, sai_ipaddress(value)
+        elif attr == "use_dst_vnet_vni":
+            return attr, str(value).lower() == 'true'
         else:
             return attr, value
 
