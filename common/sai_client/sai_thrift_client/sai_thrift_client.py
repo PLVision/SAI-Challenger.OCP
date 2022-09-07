@@ -103,8 +103,8 @@ class SaiThriftClient(SaiClient):
         return self._operate('remove', attrs=(), oid=oid, obj_type=obj_type, key=key)  # attrs are not needed on remove
 
     @assert_status
-    def set(self, *, oid=None, obj_type=None, key=None, attrs=()):
-        return self._operate_attributes('set', attrs=attrs, oid=oid, obj_type=obj_type, key=key)
+    def set(self, *, oid=None, obj_type=None, key=None, attr=()):
+        return self._operate_attributes('set', attrs=attr, oid=oid, obj_type=obj_type, key=key)
 
     @assert_status
     def get(self, *, oid=None, obj_type=None, key=None, attrs=()):
