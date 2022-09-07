@@ -27,19 +27,19 @@ class SaiDpu(Sai):
 
         # Default VLAN
         # TODO Somewhy switch is a single one, so its oid is not needed
-        self.default_vlan_oid = self.get(obj_type=SaiObjType.SWITCH,
+        self.default_vlan_oid = self.get(obj_type=SaiObjType.SWITCH, oid=self.switch_oid,
                                          attrs=["SAI_SWITCH_ATTR_DEFAULT_VLAN_ID", "0x0"]).oid()
         logging.info(f'Default VLAN oid {self.default_vlan_oid}')
         #assert (str(self.default_vlan_oid) != "0x0")
 
         # # TODO defect, bmv2 returns no data
-        # self.default_vlan_id = self.get(obj_type=SaiObjType.VLAN,
-        #                                 oid=self.sai_client.oid_to_int(self.default_vlan_oid),
+        # self.default_vlan_id = self.get(obj_type=SaiObjType.VLAN, oid=self.switch_oid,
+        #                                 oid=self.default_vlan_oid,
         #                                 attrs=["SAI_VLAN_ATTR_VLAN_ID", 0]).to_json()[0]
         # assert (str(self.default_vlan_id) != "0")
 
         # Ports
-        port_num = self.get(obj_type=SaiObjType.SWITCH, attrs=["SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS", 0]).uint32()
+        port_num = self.get(obj_type=SaiObjType.SWITCH, oid=self.switch_oid, attrs=["SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS", 0]).uint32()
         if port_num > 0:
             self.port_oids = self.get(obj_type=SaiObjType.SWITCH,
                                       attrs=["SAI_SWITCH_ATTR_PORT_LIST", self._make_list(port_num, "0x0")]).oids()
