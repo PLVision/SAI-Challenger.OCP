@@ -1,3 +1,4 @@
+from  inspect import Signature
 import json
 import logging
 from functools import wraps
@@ -126,12 +127,21 @@ class SaiThriftClient(SaiClient):
         return SaiObject(self, obj_type, key=key, attrs=attrs)
 
     @classmethod
-    def _form_obj_key(cls, oid, obj_type_name, key):
+    def _form_obj_key(cls, oid, obj_type_name, key, sai_thrift_function):
+        sai_thrift_function_params = Signature.from_callable(sai_thrift_function).parameters
         if key is not None:
             obj_key_t = getattr(ttypes, f'sai_thrift_{obj_type_name}_t')
-            return {obj_type_name: obj_key_t(**cls._convert_obj_key(obj_type_name, key))}
+            if obj_type_name in sai_thrift_function_params.keys():
+                return {obj_type_name: obj_key_t(**cls._convert_obj_key(obj_type_name, key))}
+            else:
+                return {}
         elif oid is not None:
-            return {f"{obj_type_name}_oid": oid}
+            # TODO Check sai-thrift for SWITCH. Seems like defect because oid must to be used
+            param_name = f"{obj_type_name}_oid"
+            if param_name in sai_thrift_function_params.keys():
+                return {param_name: oid}
+            else:
+                return {}
         else:
             return {}
 
@@ -205,14 +215,13 @@ class SaiThriftClient(SaiClient):
 
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}')
 
-        obj_key = self._form_obj_key(oid, obj_type_name, key)
+        obj_key = self._form_obj_key(oid, obj_type_name, key, sai_thrift_function)
         attr_kwargs = dict(self._convert_attrs(attrs, obj_type_name))
         try:
             return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
         except Exception:
             import pdb
             pdb.set_trace()
-
 
     def _unwrap_attr_thrift_dict_to_sai_challendger_list(self, sai_value):
         def _():
@@ -234,9 +243,10 @@ class SaiThriftClient(SaiClient):
         for attr, value in self._convert_attrs(attrs, obj_type_name):
             sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}_attribute')
             try:
+                obj_key = self._form_obj_key(oid, obj_type_name, key, sai_thrift_function)
                 thrift_attr_value = sai_thrift_function(
                     self.thrift_client,
-                    **self._form_obj_key(oid, obj_type_name, key),
+                    **obj_key,
                     **{attr: value}
                 )
                 result.extend(self._unwrap_attr_thrift_dict_to_sai_challendger_list(thrift_attr_value))
