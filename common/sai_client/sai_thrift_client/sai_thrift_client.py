@@ -174,22 +174,24 @@ class SaiThriftClient(SaiClient):
 
     @classmethod
     def get_object_type(cls, oid, default=None):
-        oid_id = cls.oid_to_int(oid) >> 48
-        if oid_id == 0:
-            if default is not None:
-                if isinstance(default, SaiObjType):
-                    return default
+        try:
+            oid_id = sai_rpc.sai_thrift_object_type_query()
+        except Exception:
+            oid_id = cls.oid_to_int(oid) >> 48
+            if oid_id == 0:
+                if default is not None:
+                    if isinstance(default, SaiObjType):
+                        return default
+                    else:
+                        if not isinstance(default, str):
+                            default = str(default)
+                        default = default.upper()
+                        prefix = 'SAI_OBJECT_TYPE_'
+                        if default.startswith(prefix):
+                            default = default[len(prefix):]
+                        return getattr(SaiObjType, default)
                 else:
-                    if not isinstance(default, str):
-                        default = str(default)
-                    default = default.upper()
-                    prefix = 'SAI_OBJECT_TYPE_'
-                    if default.startswith(prefix):
-                        default = default[len(prefix):]
-                    return getattr(SaiObjType, default)
-
-            else:
-                raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
+                    raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
         return SaiObjType(oid_id)
 
     @classmethod
