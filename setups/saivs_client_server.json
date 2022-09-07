@@ -6,7 +6,7 @@
     "type": "vs",
     "sku": null,
     "mode": "client-server",
-    "driver": {
+    "client": {
         "type": "redis",
         "config": {
             "ip": "172.17.0.3",
