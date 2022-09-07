@@ -44,6 +44,24 @@ def sai_ipaddress(addr_str):
 
     return ip_addr
 
+def sai_ip_interface(addr_str):
+    try:
+        iface = IPv4Interface(addr_str)
+    except AddressValueError:
+        try:
+            iface = IPv6Interface(addr_str)
+        except Exception:
+            raise
+        else:
+            addr_family = sai_headers.SAI_IP_ADDR_FAMILY_IPV6
+    else:
+        addr_family = sai_headers.SAI_IP_ADDR_FAMILY_IPV4
+
+    return sai_thrift_ip_prefix_t(
+        addr_family=addr_family,
+        addr=sai_ipaddress(iface.ip),
+        mask=sai_ipaddress(iface.netmask)
+    )
 
 def chunks(iterable, n, fillvalue=None):
     return zip_longest(*[iter(iterable)] * n, fillvalue=fillvalue)
@@ -340,10 +358,7 @@ class SaiThriftClient(SaiClient):
         def _():
             for item, value in key.items():
                 if item == 'destination':
-                    print('make prefix')
-                    yield item, sai_thrift_ip_prefix_t(addr_family=getattr(sai_headers, value['addr_family']),
-                                                       addr=sai_ipaddress(value['addr']),
-                                                       mask=sai_ipaddress(value['mask']))
+                    yield item, sai_ip_interface(value)
                 else:
                     yield item, value
 
