@@ -179,14 +179,14 @@ class Sai(AbstractEntity):
         return self.sai_client.set_loglevel(sai_api, loglevel)
 
     # CRUD
-    def create(self, obj_type, *, key=None, attrs=None):
-        return self.sai_client.create(obj_type, key=key, attrs=attrs)
+    def create(self, obj_type, *, key=None, attrs=None, do_assert=True):
+        return self.sai_client.create(obj_type, key=key, attrs=attrs, do_assert=do_assert)
 
-    def remove(self, *, oid=None, obj_type=None, key=None):
-        return self.sai_client.remove(oid=oid, obj_type=obj_type, key=key)
+    def remove(self, *, oid=None, obj_type=None, key=None, do_assert=True):
+        return self.sai_client.remove(oid=oid, obj_type=obj_type, key=key, do_assert=do_assert)
 
-    def set(self, *, oid=None, obj_type=None, key=None, attr=None):
-        return self.sai_client.set(oid=oid, obj_type=obj_type, key=key, attr=attr)
+    def set(self, *, oid=None, obj_type=None, key=None, attr=None, do_assert=True):
+        return self.sai_client.set(oid=oid, obj_type=obj_type, key=key, attr=attr, do_assert=do_assert)
 
     def get(self, *, oid=None, obj_type=None, key=None, attrs=None, do_assert=True):
         return self.sai_client.get(oid=oid, obj_type=obj_type, key=key, attrs=attrs, do_assert=do_assert)

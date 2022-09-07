@@ -9,16 +9,16 @@ class SaiClient:
         raise NotImplementedError
 
     # CRUD
-    def create(self, obj_type, *, key=None, attrs=None):
+    def create(self, obj_type, *, key=None, attrs=None, do_assert=True):
         raise NotImplementedError
 
-    def remove(self, *, oid=None, obj_type=None, key=None):
+    def remove(self, *, oid=None, obj_type=None, key=None, do_assert=True):
         raise NotImplementedError
 
-    def set(self, *, oid=None, obj_type=None, key=None, attr=None):
+    def set(self, *, oid=None, obj_type=None, key=None, attr=None, do_assert=True):
         raise NotImplementedError
 
-    def get(self, *, oid=None, obj_type=None, key=None, attrs=None):
+    def get(self, *, oid=None, obj_type=None, key=None, attrs=None, do_assert=True):
         raise NotImplementedError
 
     # Stats
