@@ -211,6 +211,9 @@ class SaiThriftClient(SaiClient):
         if oid is not None and key is not None:
             raise ValueError('Both oid and key/object type are specified')
 
+        if oid is not None:
+            oid = self.oid_to_int(oid)
+
         obj_type_name = self._get_obj_type_name(oid, obj_type)
 
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}')

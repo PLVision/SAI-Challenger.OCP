@@ -34,7 +34,7 @@ class SaiDpu(Sai):
 
         # # TODO defect, bmv2 returns no data
         # self.default_vlan_id = self.get(obj_type=SaiObjType.VLAN, oid=self.switch_oid,
-        #                                 oid=self.sai_client.oid_to_int(self.default_vlan_oid),
+        #                                 oid=self.default_vlan_oid,
         #                                 attrs=["SAI_VLAN_ATTR_VLAN_ID", 0]).to_json()[0]
         # assert (str(self.default_vlan_id) != "0")
 
