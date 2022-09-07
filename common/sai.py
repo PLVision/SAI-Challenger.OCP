@@ -61,15 +61,6 @@ class Sai(AbstractEntity):
                             substituted_key[key_name] = obj['oid'] if obj['oid'] is not None else obj['key']
                         except self.SubstitutionError:
                             substituted_key[key_name] = key_value
-                elif isinstance(key, str):
-                    try:
-                        obj = self._substitute_from_object_registry(key)
-                        substituted_key = obj['oid'] if obj['oid'] is not None else obj['key']
-
-                        substituted_command['name'] = key[1:]
-                        substituted_command['type'] = obj['type']
-                    except self.SubstitutionError:
-                        substituted_key = key
                 elif isinstance(key, int):
                     substituted_key = key
                 substituted_command["key"] = substituted_key
