@@ -2,19 +2,22 @@ import json
 import logging
 from functools import wraps
 from itertools import zip_longest
-
-from sai_thrift import sai_rpc, sai_adapter, ttypes, sai_headers
-from sai_thrift.sai_headers import SAI_IP_ADDR_FAMILY_IPV6, SAI_IP_ADDR_FAMILY_IPV4
-# noinspection PyPep8Naming
-from sai_thrift.ttypes import sai_thrift_exception as SaiThriftException, sai_thrift_ip_addr_t, sai_thrift_ip_address_t
-from thrift.protocol import TBinaryProtocol
-from thrift.transport import TSocket, TTransport
-
 from sai import SaiObjType
 from sai_client.sai_client import SaiClient
 from sai_client.sai_thrift_client.sai_thrift_status import SaiStatus
 from sai_data import SaiData
 from sai_object import SaiObject
+from sai_thrift import sai_rpc, sai_adapter, ttypes, sai_headers
+from sai_thrift.sai_headers import SAI_IP_ADDR_FAMILY_IPV6, SAI_IP_ADDR_FAMILY_IPV4
+# noinspection PyPep8Naming
+from sai_thrift.ttypes import (
+    sai_thrift_exception as SaiThriftException,
+    sai_thrift_ip_addr_t,
+    sai_thrift_ip_address_t,
+    sai_thrift_ip_prefix_t
+)
+from thrift.protocol import TBinaryProtocol
+from thrift.transport import TSocket, TTransport
 
 
 # TODO Add SAI to environment and use sai_utils.sai_ipaddress
@@ -92,29 +95,7 @@ class SaiThriftClient(SaiClient):
     @assert_status
     def create(self, obj_type, *, key=None, attrs=()):
         oid_or_status = self._operate('create', attrs=attrs, obj_type=obj_type, key=key)
-        if key is None:
-            oid = oid_or_status
-            try:
-                self.get_object_type(oid)
-            except ValueError:
-                logging.exception(f"Sai thrift has returned wrong oid: {oid}. It doesn't contain object type info")
-                if isinstance(obj_type, str):
-                    prefix = 'SAI_OBJECT_TYPE_'
-                    if obj_type.startswith(prefix):
-                        obj_type = obj_type[len(prefix):]
-                    obj_type = getattr(SaiObjType, obj_type)
-                elif isinstance(obj_type, int):
-                    obj_type = SaiObjType(obj_type)
-                elif isinstance(obj_type, SaiObjType):
-                    pass
-                else:
-                    raise ValueError(f'Unknown sai object type {obj_type}')
-                oid = (int(obj_type.value) << 48) + oid
-                logging.warn(f"Restored oid {oid}, object type {obj_type.name} obj with type info is set to {oid}")
-
-            return oid
-        else:
-            return key
+        return oid_or_status if key is None else key
 
     @assert_status
     def remove(self, *, oid=None, obj_type=None, key=None):
@@ -168,7 +149,17 @@ class SaiThriftClient(SaiClient):
         oid_id = cls.oid_to_int(oid) >> 48
         if oid_id == 0:
             if default is not None:
-                return default
+                if isinstance(default, SaiObjType):
+                    return default
+                else:
+                    if not isinstance(default, str):
+                        default = str(default)
+                    default = default.upper()
+                    prefix = 'SAI_OBJECT_TYPE_'
+                    if default.startswith(prefix):
+                        default = default[len(prefix):]
+                    return getattr(SaiObjType, default)
+
             else:
                 raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
         return SaiObjType(oid_id)
@@ -216,7 +207,12 @@ class SaiThriftClient(SaiClient):
 
         obj_key = self._form_obj_key(oid, obj_type_name, key)
         attr_kwargs = dict(self._convert_attrs(attrs, obj_type_name))
-        return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
+        try:
+            return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
+        except Exception:
+            import pdb
+            pdb.set_trace()
+
 
     def _unwrap_attr_thrift_dict_to_sai_challendger_list(self, sai_value):
         def _():
@@ -326,6 +322,30 @@ class SaiThriftClient(SaiClient):
 
         return dict(_())
 
+    @staticmethod
+    def _convert_outbound_routing_entry_key(key):
+        def _():
+            for item, value in key.items():
+                if item == 'destination':
+                    print('make prefix')
+                    yield item, sai_thrift_ip_prefix_t(addr_family=getattr(sai_headers, value['addr_family']),
+                                                       addr=sai_ipaddress(value['addr']),
+                                                       mask=sai_ipaddress(value['mask']))
+                else:
+                    yield item, value
+
+        return dict(_())
+
+    @staticmethod
+    def _convert_outbound_ca_to_pa_entry_key(key):
+        def _():
+            for item, value in key.items():
+                if item == 'dip':
+                    yield item, sai_ipaddress(value)
+                else:
+                    yield item, value
+
+        return dict(_())
     # endregion Convert object key
 
     # region Convert object attr
@@ -377,6 +397,15 @@ class SaiThriftClient(SaiClient):
     def _convert_vnet_attr(attr, value):
         if attr == "vni":
             return attr, int(value)
+        else:
+            return attr, value
+
+    @staticmethod
+    def _convert_outbound_ca_to_pa_entry_attr(attr, value):
+        if attr == "underlay_dip":
+            return attr, sai_ipaddress(value)
+        elif attr == "use_dst_vnet_vni":
+            return attr, str(value).lower() == 'true'
         else:
             return attr, value
 
