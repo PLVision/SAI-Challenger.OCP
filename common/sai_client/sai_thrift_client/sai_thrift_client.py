@@ -1,7 +1,8 @@
-from  inspect import Signature
 import json
 import logging
 from functools import wraps
+from inspect import Signature
+from ipaddress import IPv6Interface, IPv4Interface, AddressValueError
 from itertools import zip_longest
 from sai import SaiObjType
 from sai_client.sai_client import SaiClient
@@ -59,8 +60,8 @@ def sai_ip_interface(addr_str):
 
     return sai_thrift_ip_prefix_t(
         addr_family=addr_family,
-        addr=sai_ipaddress(iface.ip),
-        mask=sai_ipaddress(iface.netmask)
+        addr=sai_ipaddress(str(iface.ip)),
+        mask=sai_ipaddress(str(iface.netmask))
     )
 
 def chunks(iterable, n, fillvalue=None):
