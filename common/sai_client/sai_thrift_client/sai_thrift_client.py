@@ -44,6 +44,24 @@ def sai_ipaddress(addr_str):
 
     return ip_addr
 
+def sai_ip_interface(addr_str):
+    try:
+        iface = IPv4Interface(addr_str)
+    except AddressValueError:
+        try:
+            iface = IPv6Interface(addr_str)
+        except Exception:
+            raise
+        else:
+            addr_family = sai_headers.SAI_IP_ADDR_FAMILY_IPV6
+    else:
+        addr_family = sai_headers.SAI_IP_ADDR_FAMILY_IPV4
+
+    return sai_thrift_ip_prefix_t(
+        addr_family=addr_family,
+        addr=sai_ipaddress(iface.ip),
+        mask=sai_ipaddress(iface.netmask)
+    )
 
 def chunks(iterable, n, fillvalue=None):
     return zip_longest(*[iter(iterable)] * n, fillvalue=fillvalue)
@@ -156,22 +174,24 @@ class SaiThriftClient(SaiClient):
 
     @classmethod
     def get_object_type(cls, oid, default=None):
-        oid_id = cls.oid_to_int(oid) >> 48
-        if oid_id == 0:
-            if default is not None:
-                if isinstance(default, SaiObjType):
-                    return default
+        try:
+            oid_id = sai_rpc.sai_thrift_object_type_query()
+        except Exception:
+            oid_id = cls.oid_to_int(oid) >> 48
+            if oid_id == 0:
+                if default is not None:
+                    if isinstance(default, SaiObjType):
+                        return default
+                    else:
+                        if not isinstance(default, str):
+                            default = str(default)
+                        default = default.upper()
+                        prefix = 'SAI_OBJECT_TYPE_'
+                        if default.startswith(prefix):
+                            default = default[len(prefix):]
+                        return getattr(SaiObjType, default)
                 else:
-                    if not isinstance(default, str):
-                        default = str(default)
-                    default = default.upper()
-                    prefix = 'SAI_OBJECT_TYPE_'
-                    if default.startswith(prefix):
-                        default = default[len(prefix):]
-                    return getattr(SaiObjType, default)
-
-            else:
-                raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
+                    raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
         return SaiObjType(oid_id)
 
     @classmethod
@@ -340,10 +360,7 @@ class SaiThriftClient(SaiClient):
         def _():
             for item, value in key.items():
                 if item == 'destination':
-                    print('make prefix')
-                    yield item, sai_thrift_ip_prefix_t(addr_family=getattr(sai_headers, value['addr_family']),
-                                                       addr=sai_ipaddress(value['addr']),
-                                                       mask=sai_ipaddress(value['mask']))
+                    yield item, sai_ip_interface(value)
                 else:
                     yield item, value
 
