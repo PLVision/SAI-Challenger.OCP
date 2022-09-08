@@ -440,4 +440,19 @@ class SaiThriftClient(SaiClient):
         else:
             return attr, value
 
+    @staticmethod
+    def _convert_acl_rule_attr(attr, value):
+        if attr in {"dip", "sip"}:
+            return attr, sai_ipaddress(value)
+        elif attr in {
+            "protocol"
+            "src_port"
+            "dst_port"
+            "priority"
+            "action"
+        }:
+            return attr, int(value)
+        else:
+            return attr, value
+
     # endregion Convert object attr
