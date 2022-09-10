@@ -65,6 +65,7 @@ def sai_ip_interface(addr_str):
     )
 
 def chunks(iterable, n, fillvalue=None):
+    """Split iterable to chunks of length n"""
     return zip_longest(*[iter(iterable)] * n, fillvalue=fillvalue)
 
 
@@ -97,6 +98,7 @@ def assert_status(method):
 
 
 class SaiThriftClient(SaiClient):
+    """Thrift SAI client implementation to wrap low level SAI calls"""
     def __init__(self, driver_config):
         self.thrift_client, self.thrift_transport = self.start_thrift_client(driver_config)
 
@@ -151,6 +153,8 @@ class SaiThriftClient(SaiClient):
         if key is not None:
             obj_key_t = getattr(ttypes, f'sai_thrift_{obj_type_name}_t')
             if obj_type_name in sai_thrift_function_params.keys():
+                # Check region Convert object key for realizations
+                # TODO move to separate classes calls
                 return {obj_type_name: obj_key_t(**cls._convert_obj_key(obj_type_name, key))}
             else:
                 return {}
@@ -224,6 +228,8 @@ class SaiThriftClient(SaiClient):
         for attr, value in chunks(attrs, 2):
             value = cls._substitute_headers_attr_value(value)
             if hasattr(sai_headers, attr) and attr.startswith(prefix):
+                # Check region Convert object attr
+                # TODO move to separate classes calls
                 yield cls._convert_obj_attr(obj_type_name, attr[len(prefix):].lower(), value)
             else:
                 raise ValueError(f'Attribute {attr} cannot be converted')
@@ -291,6 +297,7 @@ class SaiThriftClient(SaiClient):
         ...
 
     # region Convert object key
+    """During CRUDing SAI objects by DSL values has to be converted to acceptable by Thrift"""
     @staticmethod
     def _convert_equivalence_obj_key(key):
         return key

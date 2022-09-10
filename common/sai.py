@@ -10,6 +10,12 @@ from saichallenger.common.sai_client.sai_client import SaiClient
 
 class Sai(AbstractEntity):
     class CommandProcessor:
+        """
+        Allow setup scaled configurations with referenced objects.
+        Contain reference object cache.
+        When objects are referenced they are regenerating missing keys/oids from object cache
+        """
+
         class SubstitutionError(RuntimeError):
             ...
 

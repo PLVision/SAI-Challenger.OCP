@@ -17,7 +17,7 @@ sys.path.insert(0, parentparentdir)
 from sai_data import SaiObjType, SaiData
 
 class SaiRedisClient(SaiClient):
-
+    """Redis SAI client implementation to wrap low level SAI calls"""
     attempts = 40
 
     def __init__(self, driver_config):
