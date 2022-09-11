@@ -20,6 +20,7 @@ from sai_thrift.ttypes import (
 )
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
+from typing import Iterable, Mapping, Union
 
 
 # TODO Add SAI to environment and use sai_utils.sai_ipaddress
@@ -45,6 +46,7 @@ def sai_ipaddress(addr_str):
 
     return ip_addr
 
+
 def sai_ip_interface(addr_str):
     try:
         iface = IPv4Interface(addr_str)
@@ -63,6 +65,7 @@ def sai_ip_interface(addr_str):
         addr=sai_ipaddress(str(iface.ip)),
         mask=sai_ipaddress(str(iface.netmask))
     )
+
 
 def chunks(iterable, n, fillvalue=None):
     """Split iterable to chunks of length n"""
@@ -99,8 +102,9 @@ def assert_status(method):
 
 class SaiThriftClient(SaiClient):
     """Thrift SAI client implementation to wrap low level SAI calls"""
-    def __init__(self, driver_config):
-        self.thrift_client, self.thrift_transport = self.start_thrift_client(driver_config)
+
+    def __init__(self, client_config):
+        self.thrift_client, self.thrift_transport = self.start_thrift_client(client_config)
 
     @staticmethod
     def start_thrift_client(driver_config):
@@ -177,43 +181,39 @@ class SaiThriftClient(SaiClient):
         else:
             return int(oid)
 
-    @classmethod
-    def get_object_type(cls, oid, default=None):
-        try:
-            oid_id = sai_rpc.sai_thrift_object_type_query()
-        except Exception:
-            oid_id = cls.oid_to_int(oid) >> 48
-            if oid_id == 0:
-                if default is not None:
-                    if isinstance(default, SaiObjType):
-                        return default
-                    else:
-                        if not isinstance(default, str):
-                            default = str(default)
-                        default = default.upper()
-                        prefix = 'SAI_OBJECT_TYPE_'
-                        if default.startswith(prefix):
-                            default = default[len(prefix):]
-                        return getattr(SaiObjType, default)
-                else:
-                    raise ValueError(f'Unable find appropriate Sai object type for oid: {oid}, oid_id: {oid_id}')
-        return SaiObjType(oid_id)
+    def get_object_type(self, oid, default=None) -> SaiObjType:
+        """
+            Try to calculate object type from oid.
+            If default is provided calculated value checked to be same to default
+            If not possible to calculate object type from oid default is used
+        """
 
-    @classmethod
-    def _get_obj_type_name(cls, oid=None, obj_type=None):
+        default_obj_type = SaiObject.normalize_obj_type(default)
+        calculated_obj_type_exception = None
         if oid is not None:
-            return cls.get_object_type(oid, default=obj_type).name.lower()
-        else:
-            if isinstance(obj_type, SaiObjType):
-                return obj_type.name.lower()
+            try:
+                calculated_oid_id = self.thrift_client.sai_thrift_object_type_query(self.oid_to_int(oid))
+            except Exception as calculated_obj_type_exception:
+                calculated_oid_id = self.oid_to_int(oid) >> 48
+            if calculated_oid_id != 0:
+                calculated_oid_obj_type = SaiObject.Type(calculated_oid_id)
             else:
-                if not isinstance(obj_type, str):
-                    obj_type = str(obj_type)
-                obj_type = obj_type.lower()
-                prefix = 'sai_object_type_'
-                if obj_type.startswith(prefix):
-                    obj_type = obj_type[len(prefix):]
-                return obj_type
+                calculated_oid_obj_type = None
+        else:
+            calculated_oid_obj_type = None
+        if default_obj_type is None and calculated_oid_obj_type is None:
+            raise ValueError(
+                f'Unable find appropriate Sai object type for oid: {oid}, default object type {default}'
+            ) from calculated_obj_type_exception
+        elif default_obj_type is not None and calculated_oid_obj_type is not None:
+            if default_obj_type != calculated_oid_obj_type:
+                logging.error(f'Default object type {default_obj_type} and '
+                              f'calculated object type {calculated_oid_obj_type} for oid {oid} are not same, '
+                              f'using default one', exc_info=calculated_obj_type_exception)
+            obj_type = default_obj_type
+        else:
+            obj_type = default_obj_type or calculated_oid_obj_type
+        return obj_type
 
     @staticmethod
     def _substitute_headers_attr_value(value):
@@ -223,9 +223,9 @@ class SaiThriftClient(SaiClient):
             return value
 
     @classmethod
-    def _convert_attrs(cls, attrs, obj_type_name: str):
+    def _convert_attrs(cls, attrs: Union[Mapping, Iterable], obj_type_name: str):
         prefix = f'SAI_{obj_type_name.upper()}_ATTR_'
-        for attr, value in chunks(attrs, 2):
+        for attr, value in attrs.items() if isinstance(attrs, Mapping) else chunks(attrs, 2):
             value = cls._substitute_headers_attr_value(value)
             if hasattr(sai_headers, attr) and attr.startswith(prefix):
                 # Check region Convert object attr
@@ -236,22 +236,19 @@ class SaiThriftClient(SaiClient):
 
     def _operate(self, operation, attrs=(), oid=None, obj_type=None, key=None):
         if oid is not None and key is not None:
-            raise ValueError('Both oid and key/object type are specified')
+            raise ValueError('Both oid and key are specified')
 
         if oid is not None:
             oid = self.oid_to_int(oid)
 
-        obj_type_name = self._get_obj_type_name(oid, obj_type)
+        obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
 
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}')
 
         obj_key = self._form_obj_key(oid, obj_type_name, key, sai_thrift_function)
         attr_kwargs = dict(self._convert_attrs(attrs, obj_type_name))
-        try:
-            return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
-        except Exception:
-            import pdb
-            pdb.set_trace()
+
+        return sai_thrift_function(self.thrift_client, **obj_key, **attr_kwargs)
 
     def _unwrap_attr_thrift_dict_to_sai_challendger_list(self, sai_value):
         def _():
@@ -264,8 +261,8 @@ class SaiThriftClient(SaiClient):
 
     def _operate_attributes(self, operation, attrs=(), oid=None, obj_type=None, key=None):
         if oid is not None and key is not None:
-            raise ValueError('Both oid and key/object type are specified')
-        obj_type_name = self._get_obj_type_name(oid, obj_type)
+            raise ValueError('Both oid and key are specified')
+        obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
 
         # thrift functions operating one attribute a time
         exceptions = []
@@ -298,6 +295,7 @@ class SaiThriftClient(SaiClient):
 
     # region Convert object key
     """During CRUDing SAI objects by DSL values has to be converted to acceptable by Thrift"""
+
     @staticmethod
     def _convert_equivalence_obj_key(key):
         return key
@@ -384,6 +382,7 @@ class SaiThriftClient(SaiClient):
                     yield item, value
 
         return dict(_())
+
     # endregion Convert object key
 
     # region Convert object attr

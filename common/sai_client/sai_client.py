@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 class SaiClient:
     """SAI client interface to wrap low level SAI calls. Is used to define own SAI wrappers"""
-    def __init__(self, driver_config):
+    def __init__(self, client_config):
         raise NotImplementedError
 
     def cleanup(self):
