@@ -183,14 +183,12 @@ class SaiThriftClient(SaiClient):
 
     def get_object_type(self, oid, default=None) -> SaiObjType:
         """
-            Try to calculate object type from oid.
-            If default is provided calculated value checked to be same to default
-            If not possible to calculate object type from oid default is used
+            Try to calculate object type from oid if default type is not provided
         """
 
         default_obj_type = SaiObject.normalize_obj_type(default)
         calculated_obj_type_exception = None
-        if oid is not None:
+        if oid is not None and default_obj_type is None:
             try:
                 calculated_oid_id = self.thrift_client.sai_thrift_object_type_query(self.oid_to_int(oid))
             except Exception as calculated_obj_type_exception:
@@ -205,12 +203,6 @@ class SaiThriftClient(SaiClient):
             raise ValueError(
                 f'Unable find appropriate Sai object type for oid: {oid}, default object type {default}'
             ) from calculated_obj_type_exception
-        elif default_obj_type is not None and calculated_oid_obj_type is not None:
-            if default_obj_type != calculated_oid_obj_type:
-                logging.error(f'Default object type {default_obj_type} and '
-                              f'calculated object type {calculated_oid_obj_type} for oid {oid} are not same, '
-                              f'using default one', exc_info=calculated_obj_type_exception)
-            obj_type = default_obj_type
         else:
             obj_type = default_obj_type or calculated_oid_obj_type
         return obj_type

@@ -63,7 +63,7 @@ class SaiObject:
         result = self.sai_client.get(self, oid=self.oid, obj_type=self.obj_type, key=self.key, attrs=[item, '<empty>'])
         return result if result == '<empty>' else None
 
-    # region Placeholders for generated classes
+    # region Placeholders for generated classes (They are generated on module import, see below)
     @staticmethod
     def _placeholder_init(sai_client, key=None, attrs=()) -> 'SaiObject':
         ...
@@ -187,6 +187,7 @@ class SaiObject:
     # endregion Placeholders for generated classes
 
 
+# Generating SaiObject types and add them to SaiObject's namespace
 for member in SaiObject.Type:
     @wraps(SaiObject.__init__)
     def __init__(*args, obj_type=member, **kwargs):

@@ -5,6 +5,10 @@ from unittest.mock import Mock, patch
 
 
 def test_command_processor():
+    """
+        Command processor is a tool for setup appliance SAI configuration. Such configuration could be stored
+        in yaml/json configs and fed to Sai by Command processor. This test show simple configuration setup using it.
+    """
     with patch.object(SaiThriftClient, 'start_thrift_client', return_value=(Mock(), Mock())):
         sai_client = SaiThriftClient(Mock())
         command_processor = Sai.CommandProcessor(sai_client)
