@@ -42,7 +42,7 @@ class SaiObject:
 
     @classmethod
     def init_by_existing_oid(cls, sai_client, oid, obj_type=None) -> 'SaiObject':
-        instance = cls(sai_client, obj_type=sai_client.get_object_type(oid, default=obj_type), _init=False)
+        instance = cls(sai_client, obj_type=sai_client.get_obj_type(oid, default_obj_type=obj_type), _init=False)
         instance.oid = oid
         return instance
 
@@ -63,7 +63,7 @@ class SaiObject:
         result = self.sai_client.get(self, oid=self.oid, obj_type=self.obj_type, key=self.key, attrs=[item, '<empty>'])
         return result if result == '<empty>' else None
 
-    # region Placeholders for generated classes
+    # region Placeholders for generated classes (They are generated on module import, see below)
     @staticmethod
     def _placeholder_init(sai_client, key=None, attrs=()) -> 'SaiObject':
         ...
@@ -187,6 +187,7 @@ class SaiObject:
     # endregion Placeholders for generated classes
 
 
+# Generating SaiObject types and add them to SaiObject's namespace
 for member in SaiObject.Type:
     @wraps(SaiObject.__init__)
     def __init__(*args, obj_type=member, **kwargs):

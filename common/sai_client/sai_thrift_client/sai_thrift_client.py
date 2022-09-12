@@ -20,7 +20,7 @@ from sai_thrift.ttypes import (
 )
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
-from typing import Iterable, Mapping, Union
+from typing import Iterable, Mapping, Union, Optional
 
 
 # TODO Add SAI to environment and use sai_utils.sai_ipaddress
@@ -181,16 +181,18 @@ class SaiThriftClient(SaiClient):
         else:
             return int(oid)
 
-    def get_object_type(self, oid, default=None) -> SaiObjType:
+    def get_obj_type(
+            self,
+            oid: Optional[Union[str, int]],
+            default_obj_type: Optional[Union[SaiObjType, str, int]] = None
+    ) -> SaiObjType:
         """
-            Try to calculate object type from oid.
-            If default is provided calculated value checked to be same to default
-            If not possible to calculate object type from oid default is used
+            Try to calculate object type from oid if default type is not provided
         """
 
-        default_obj_type = SaiObject.normalize_obj_type(default)
+        default_obj_type = SaiObject.normalize_obj_type(default_obj_type)
         calculated_obj_type_exception = None
-        if oid is not None:
+        if oid is not None and default_obj_type is None:
             try:
                 calculated_oid_id = self.thrift_client.sai_thrift_object_type_query(self.oid_to_int(oid))
             except Exception as calculated_obj_type_exception:
@@ -203,14 +205,8 @@ class SaiThriftClient(SaiClient):
             calculated_oid_obj_type = None
         if default_obj_type is None and calculated_oid_obj_type is None:
             raise ValueError(
-                f'Unable find appropriate Sai object type for oid: {oid}, default object type {default}'
+                f'Unable find appropriate Sai object type for oid: {oid}, default object type {default_obj_type}'
             ) from calculated_obj_type_exception
-        elif default_obj_type is not None and calculated_oid_obj_type is not None:
-            if default_obj_type != calculated_oid_obj_type:
-                logging.error(f'Default object type {default_obj_type} and '
-                              f'calculated object type {calculated_oid_obj_type} for oid {oid} are not same, '
-                              f'using default one', exc_info=calculated_obj_type_exception)
-            obj_type = default_obj_type
         else:
             obj_type = default_obj_type or calculated_oid_obj_type
         return obj_type
@@ -241,7 +237,7 @@ class SaiThriftClient(SaiClient):
         if oid is not None:
             oid = self.oid_to_int(oid)
 
-        obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
+        obj_type_name = self.get_obj_type(oid, default_obj_type=obj_type).name.lower()
 
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}')
 
@@ -262,7 +258,7 @@ class SaiThriftClient(SaiClient):
     def _operate_attributes(self, operation, attrs=(), oid=None, obj_type=None, key=None):
         if oid is not None and key is not None:
             raise ValueError('Both oid and key are specified')
-        obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
+        obj_type_name = self.get_obj_type(oid, default_obj_type=obj_type).name.lower()
 
         # thrift functions operating one attribute a time
         exceptions = []
@@ -294,7 +290,7 @@ class SaiThriftClient(SaiClient):
         ...
 
     # region Convert object key
-    """During CRUDing SAI objects by DSL values has to be converted to acceptable by Thrift"""
+    """During CRUDing SAI objects object key values has to be converted to be acceptable by Thrift"""
 
     @staticmethod
     def _convert_equivalence_obj_key(key):
@@ -386,6 +382,8 @@ class SaiThriftClient(SaiClient):
     # endregion Convert object key
 
     # region Convert object attr
+    """During CRUDing SAI objects object attr values has to be converted to be acceptable by Thrift"""
+
     @staticmethod
     def _convert_equivalence_obj_attr(key, value):
         return key, value
