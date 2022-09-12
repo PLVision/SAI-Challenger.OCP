@@ -333,6 +333,8 @@ class SaiThriftClient(SaiClient):
     def _convert_pa_validation_entry_key(key):
         def _():
             for item, value in key.items():
+                if item == 'vnet_id':
+                    yield item, SaiThriftClient.oid_to_int(value)
                 if item == 'vni':
                     yield item, int(value)
                 elif item == 'sip':
