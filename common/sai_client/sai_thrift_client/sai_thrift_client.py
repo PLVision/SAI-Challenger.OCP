@@ -346,7 +346,11 @@ class SaiThriftClient(SaiClient):
     def _convert_inbound_routing_entry_key(key):
         def _():
             for item, value in key.items():
-                if item == 'vni':
+                if item in {'switch_id', 'eni_id'}:
+                    yield item, SaiThriftClient.oid_to_int(value)
+                elif item in {'sip', 'sip_mask'}:
+                    yield item, sai_ipaddress(value)
+                if item in {'vni', 'priority'}:
                     yield item, int(value)
                 else:
                     yield item, value
