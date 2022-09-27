@@ -1,4 +1,3 @@
-
 import logging
 import sys
 import time
@@ -66,6 +65,7 @@ class SaiDataplaneImpl(SaiDataplane):
         self.alias = exec_params['alias']
         self.mode = exec_params['mode']
         super().__init__(exec_params)
+        self.flows = []
 
     def init(self):
         # Configure a new API instance where the location points to controller
@@ -203,14 +203,15 @@ class SaiDataplaneImpl(SaiDataplane):
         res = self.api.set_transmit_state(ts)
         assert self.api_results_ok(res), res
 
-    def pause_traffic(self):
-        """ Pause traffic flow(s) which are already configured.
-        """
-        ts = self.api.transmit_state()
-        ts.state = ts.PAUSE
-        logging.info('Pause traffic')
-        res = self.api.set_transmit_state(ts)
-        assert self.api_results_ok(res), res
+    # PAUSE api not supported by Ixia-C
+    # def pause_traffic(self):
+    #     """ Pause traffic flow(s) which are already configured.
+    #     """
+    #     ts = self.api.transmit_state()
+    #     ts.state = ts.PAUSE
+    #     logging.info('Pause traffic')
+    #     res = self.api.set_transmit_state(ts)
+    #     assert self.api_results_ok(res), res
 
     def is_traffic_stopped(self, flow_names=[]):
         """
@@ -254,3 +255,151 @@ class SaiDataplaneImpl(SaiDataplane):
 
         flow_rx = sum([f.frames_rx for f in flow_stats])
         return flow_rx == packets
+
+    def add_flow(self,
+        name = "Default flow name",
+        packet_count = 1,
+        pps = 1000
+    ):
+        flow = self.configuration.flows.flow(name=name)[-1]
+
+        flow.tx_rx.port.tx_name = self.configuration.ports[0].name
+        flow.tx_rx.port.rx_name = self.configuration.ports[1].name
+
+        flow.size.fixed = 128
+        flow.duration.fixed_packets.packets = packet_count
+        flow.rate.pps = pps
+        flow.metrics.enable = True
+
+        self.flows.append(flow)
+        return flow
+
+    def add_simple_vxlan_packet(self,
+        flow: snappi.Flow,
+        outer_dst_mac,
+        outer_src_mac,
+        outer_dst_ip,
+        outer_src_ip,
+        dst_udp_port,
+        src_udp_port,
+        vni,
+        inner_dst_mac,
+        inner_src_mac,
+        inner_dst_ip,
+        inner_src_ip
+    ):
+        if flow == None:
+            print("flow is None")
+            return
+        
+        if flow.packet:
+            print("packet in flow")
+            return
+        
+        self.add_ethernet_header(flow, outer_dst_mac, outer_src_mac)
+        self.add_ipv4_header(flow, outer_dst_ip, outer_src_ip)
+        self.add_udp_header(flow, dst_udp_port, src_udp_port)
+        self.add_vxlan_header(flow, vni)
+        self.add_ethernet_header(flow, inner_dst_mac, inner_src_mac)
+        self.add_ipv4_header(flow, inner_dst_ip, inner_src_ip)
+
+    def set_increment(self, field, choice, count, start, step):
+        if choice == 'increment':
+            field.choice = choice
+            field.increment.count = count
+            field.increment.start = start
+            field.increment.step = step
+
+    def add_ethernet_header(self,
+        flow: snappi.Flow,
+        dst_mac = "FF:FF:FF:FF:FF:FF",
+        src_mac = "00:01:02:03:04:05",
+        eth_type = 0x0800,
+        dst_choice = snappi.PatternFlowEthernetDst.VALUE,
+        dst_count = 1,
+        dst_step = "00:00:00:00:00:01",
+        src_choice = snappi.PatternFlowEthernetSrc.VALUE,
+        src_count = 1,
+        src_step = "00:00:00:00:00:01"
+    ):
+        if flow == None:
+            return None
+
+        ether = flow.packet.add().ethernet
+        ether.dst.value = dst_mac
+        ether.src.value = src_mac
+        ether.ether_type.value = eth_type
+
+        # Setup increment
+        self.set_increment(ether.dst, dst_choice, dst_count, dst_mac, dst_step)
+        self.set_increment(ether.src, src_choice, src_count, src_mac, src_step)
+
+        return ether
+
+    # TODO: add other fields
+    def add_ipv4_header(self,
+        flow: snappi.Flow,
+        dst_ip = "192.168.0.1",
+        src_ip = "192.168.0.2",
+        dst_choice = snappi.PatternFlowIpv4Dst.VALUE,
+        dst_count = 1,
+        dst_step = "0.0.0.1",
+        src_choice = snappi.PatternFlowIpv4Src.VALUE,
+        src_count = 1,
+        src_step = "0.0.0.1"
+    ):
+        if flow == None:
+            return None
+
+        ipv4 = flow.packet.add().ipv4
+        ipv4.dst.value = dst_ip
+        ipv4.src.value = src_ip
+
+        # Setup increment
+        self.set_increment(ipv4.dst, dst_choice, dst_count, dst_ip, dst_step)
+        self.set_increment(ipv4.src, src_choice, src_count, src_ip, src_step)
+
+        return ipv4
+
+
+    def add_udp_header(self,
+        flow: snappi.Flow,
+        dst_port = 80,
+        src_port = 1234,
+        dst_choice = snappi.PatternFlowUdpDstPort.VALUE,
+        dst_count = 1,
+        dst_step = 1,
+        src_choice = snappi.PatternFlowUdpSrcPort.VALUE,
+        src_count = 1,
+        src_step = 1
+    ):
+        if flow == None:
+            return None
+
+        udp = flow.packet.add().udp
+        udp.dst_port.value = dst_port
+        udp.src_port.value = src_port
+
+        # Setup increment
+        self.set_increment(udp.dst_port, dst_choice, dst_count, dst_port, dst_step)
+        self.set_increment(udp.src_port, src_choice, src_count, src_port, src_step)
+
+        return udp
+
+    def add_vxlan_header(self,
+        flow: snappi.Flow,
+        vni = 100,
+        vni_choice = snappi.PatternFlowVxlanVni.VALUE,
+        vni_count = 1,
+        vni_step = 1
+    ):
+        if flow == None:
+            return None
+        
+        vxlan = flow.packet.add().vxlan
+        vxlan.vni.value = vni
+
+        # Setup increment
+        self.set_increment(vxlan.vni, vni_choice, vni_count, vni, vni_step)
+
+        return vxlan
