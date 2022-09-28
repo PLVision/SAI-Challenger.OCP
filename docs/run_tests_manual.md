@@ -48,6 +48,6 @@ And check  `/var/log/messages`
 
 To see what the input of the redis-server you need to install tcpdump and run it while tests are running:
 ```
-apt install tcpdump
-tcpdump
+sudo apt install -y tcpdump
+sudo tcpdump port 6379
 ```
