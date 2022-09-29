@@ -1,6 +1,8 @@
 import logging
 import sys
 import time
+import ipaddress
+import macaddress
 
 import dpkt
 from saichallenger.common.sai_dataplane import SaiDataplane
@@ -109,6 +111,7 @@ class SaiDataplaneImpl(SaiDataplane):
         super().tearDown()
         self.stop_capture()
         self.configuration.flows.clear()
+        self.flows.clear()
 
     @staticmethod
     def api_results_ok(results):
@@ -256,20 +259,92 @@ class SaiDataplaneImpl(SaiDataplane):
         flow_rx = sum([f.frames_rx for f in flow_stats])
         return flow_rx == packets
 
+    def get_next_ip(self, ip = "192.168.0.1", step = "0.0.0.1") -> str:
+        if ip == None:
+            ip = "192.168.0.1"
+        if step == None:
+            step = "0.0.0.1"
+
+        return str(ipaddress.IPv4Address(int(ipaddress.IPv4Address(ip)) + int(ipaddress.IPv4Address(step))))
+
+    def get_next_mac(self, mac = "00:00:00:AA:BB:01", step = "00:00:00:00:00:01"):
+        if mac == None:
+            mac = "00:00:00:AA:BB:01"
+        if step == None:
+            step = "00:00:00:00:00:01"
+
+        return str(macaddress.MAC(int(macaddress.MAC(mac)) + int(macaddress.MAC(step)))).replace('-', ':')
+
+    def configure_vxlan_packet(self, ODIP: dict, VNI: dict, ISMAC: dict, IDIP: dict):
+        count_lambda = lambda dict_count: dict_count['count'] if 'count' in dict_count else 1
+        step_lambda = lambda dict_step: dict_step['step'] if 'step' in dict_step else None
+
+        odip_val = ODIP['start']
+        for odip in range(0, count_lambda(ODIP)):
+            vni_val = VNI['start']
+            for vni in range(0, count_lambda(VNI)):
+                idip_val = IDIP['start']
+                for idip in range(0, count_lambda(IDIP)):
+                    ismac_val = ISMAC['start']
+                    for ismac in range(0, count_lambda(ISMAC)):
+                        flow = self.add_flow("Flow {} > {} | IPV4#{} | VNI#{} | DIP#{} MAC#{}".format(
+                            self.configuration.ports[0].name, self.configuration.ports[1].name, odip, vni, idip, ismac))
+
+                        self.add_ethernet_header(flow, dst_mac="00:00:02:03:04:05", src_mac="00:00:05:06:06:06")
+                        self.add_ipv4_header(flow, dst_ip=odip_val, src_ip="172.16.1.1")
+                        self.add_udp_header(flow, dst_port=80, src_port=11638)
+                        self.add_vxlan_header(flow, vni=vni_val)
+                        self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=ismac_val)
+                        self.add_ipv4_header(flow, dst_ip=idip_val, src_ip="10.1.1.10")
+                        self.add_udp_header(flow)
+
+                        ismac_val = self.get_next_mac(ismac_val, step_lambda(ISMAC))
+                    idip_val = self.get_next_ip(idip_val, step_lambda(IDIP))
+                vni_val += step_lambda(VNI)
+            odip_val = self.get_next_ip(odip_val, step_lambda(ODIP))
+
+    def preapare_vxlan_packets(self, test_conf: dict):
+        ODIP = test_conf['DASH_VIP']['vpe']['IPV4']
+        VNI = test_conf['DASH_DIRECTION_LOOKUP']['dle']['VNI']
+        ISMAC = test_conf['DASH_ENI_ETHER_ADDRESS_MAP']['eam']['MAC']
+        IDIP = test_conf['DASH_OUTBOUND_CA_TO_PA']['ocpe']['DIP']
+
+        if type(ODIP) != dict:
+            ODIP = { 'count': 1, 'start': ODIP, 'step': "0.0.0.1" }
+        if type(VNI) != dict:
+            VNI = { 'count': 1, 'start': VNI, 'step': 1 }
+        if type(ISMAC) != dict:
+            ISMAC = { 'count': 1, 'start': ISMAC, 'step': "00:00:00:00:00:01" }
+        if type(IDIP) != dict:
+            IDIP = { 'count': 1, 'start': IDIP, 'step': "0.0.0.1" }
+
+        self.configure_vxlan_packet(ODIP, VNI, ISMAC, IDIP)
+
     def add_flow(self,
         name = "Default flow name",
         packet_count = 1,
-        pps = 1000
+        seconds_count = 0,
+        pps = 10,
+        force_pps = False
     ):
         flow = self.configuration.flows.flow(name=name)[-1]
 
         flow.tx_rx.port.tx_name = self.configuration.ports[0].name
         flow.tx_rx.port.rx_name = self.configuration.ports[1].name
 
+        if (seconds_count > 0):
+            flow.duration.fixed_seconds.seconds = seconds_count
+        else:
+            flow.duration.fixed_packets.packets = packet_count
+
         flow.size.fixed = 128
-        flow.duration.fixed_packets.packets = packet_count
-        flow.rate.pps = pps
         flow.metrics.enable = True
+
+        # if (bmv2):
+        #     dont change pps
+        # else if (force_pps == True):
+        #     change
+        flow.rate.pps = pps
 
         self.flows.append(flow)
         return flow
@@ -298,10 +373,14 @@ class SaiDataplaneImpl(SaiDataplane):
         
         self.add_ethernet_header(flow, outer_dst_mac, outer_src_mac)
         self.add_ipv4_header(flow, outer_dst_ip, outer_src_ip)
-        self.add_udp_header(flow, dst_udp_port, src_udp_port)
+        u = self.add_udp_header(flow, dst_udp_port, src_udp_port)
+        # TODO: report ixia bug (udp checksum still generated)
+        # u.checksum.choice = u.checksum.CUSTOM
+        # u.checksum.custom = 1
         self.add_vxlan_header(flow, vni)
         self.add_ethernet_header(flow, inner_dst_mac, inner_src_mac)
         self.add_ipv4_header(flow, inner_dst_ip, inner_src_ip)
+        self.add_udp_header(flow)
 
     def set_increment(self, field, choice, count, start, step):
         if choice == 'increment':
