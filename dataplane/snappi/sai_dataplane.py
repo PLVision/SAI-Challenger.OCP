@@ -9,57 +9,6 @@ from saichallenger.common.sai_dataplane import SaiDataplane
 from snappi import snappi
 
 BASE_TENGINE_PORT = 5555
-DEFAULT_STEP = 0.2
-DEFAULT_TIMEOUT = 2
-DEFAULT_N_TIMEOUT = 2
-
-
-def seconds_elapsed(start_seconds):
-    return int(round(time.time() - start_seconds))
-
-
-def timed_out(start_seconds, timeout):
-    return seconds_elapsed(start_seconds) > timeout
-
-
-def wait_for(func, condition_str, interval_seconds=None, timeout_seconds=None):
-    """
-    Keeps calling the `func` until it returns true or `timeout_seconds` occurs
-    every `interval_seconds`. `condition_str` should be a constant string
-    implying the actual condition being tested.
-    Usage
-    -----
-    If we wanted to poll for current seconds to be divisible by `n`, we would
-    implement something similar to following:
-    ```
-    import time
-    def wait_for_seconds(n, **kwargs):
-        condition_str = 'seconds to be divisible by %d' % n
-        def condition_satisfied():
-            return int(time.time()) % n == 0
-        poll_until(condition_satisfied, condition_str, **kwargs)
-    ```
-    """
-    if interval_seconds is None:
-        interval_seconds = DEFAULT_STEP
-    if timeout_seconds is None:
-        timeout_seconds = DEFAULT_TIMEOUT
-    start_seconds = int(time.time())
-
-    print("\n\nWaiting for %s ..." % condition_str)
-    while True:
-        res = func()
-        if res:
-            print("Done waiting for %s" % condition_str)
-            break
-        if res is None:
-            raise Exception("Wait aborted for %s" % condition_str)
-        if timed_out(start_seconds, timeout_seconds):
-            msg = "Time out occurred while waiting for %s" % condition_str
-            raise Exception(msg)
-
-        time.sleep(interval_seconds)
-
 
 class SaiDataplaneImpl(SaiDataplane):
 
@@ -259,21 +208,25 @@ class SaiDataplaneImpl(SaiDataplane):
         flow_rx = sum([f.frames_rx for f in flow_stats])
         return flow_rx == packets
 
-    def get_next_ip(self, ip = "192.168.0.1", step = "0.0.0.1") -> str:
+    # number - count of steps to do
+    def get_next_ip(self, ip = "192.168.0.1", step = "0.0.0.1", number = 1) -> str:
         if ip == None:
             ip = "192.168.0.1"
         if step == None:
             step = "0.0.0.1"
+        if number == 0:
+            return str(ipaddress.IPv4Address(ip))
+        return str(ipaddress.IPv4Address(int(ipaddress.IPv4Address(ip)) + number * int(ipaddress.IPv4Address(step))))
 
-        return str(ipaddress.IPv4Address(int(ipaddress.IPv4Address(ip)) + int(ipaddress.IPv4Address(step))))
-
-    def get_next_mac(self, mac = "00:00:00:AA:BB:01", step = "00:00:00:00:00:01"):
+    # number - count of steps to do
+    def get_next_mac(self, mac = "00:00:00:AA:BB:01", step = "00:00:00:00:00:01", number = 1):
         if mac == None:
             mac = "00:00:00:AA:BB:01"
         if step == None:
             step = "00:00:00:00:00:01"
-
-        return str(macaddress.MAC(int(macaddress.MAC(mac)) + int(macaddress.MAC(step)))).replace('-', ':')
+        if number == 0:
+            return str(macaddress.MAC(mac))
+        return str(macaddress.MAC(int(macaddress.MAC(mac)) + number * int(macaddress.MAC(step)))).replace('-', ':')
 
     def configure_vxlan_packet(self, ODIP: dict, VNI: dict, ISMAC: dict, IDIP: dict):
         count_lambda = lambda dict_count: dict_count['count'] if 'count' in dict_count else 1
@@ -287,7 +240,7 @@ class SaiDataplaneImpl(SaiDataplane):
                 for idip in range(0, count_lambda(IDIP)):
                     ismac_val = ISMAC['start']
                     for ismac in range(0, count_lambda(ISMAC)):
-                        flow = self.add_flow("Flow {} > {} | IPV4#{} | VNI#{} | DIP#{} MAC#{}".format(
+                        flow = self.add_flow("Flow {} > {} |IPV4#{}|VNI#{}|DIP#{}|MAC#{}".format(
                             self.configuration.ports[0].name, self.configuration.ports[1].name, odip, vni, idip, ismac))
 
                         self.add_ethernet_header(flow, dst_mac="00:00:02:03:04:05", src_mac="00:00:05:06:06:06")
@@ -330,7 +283,7 @@ class SaiDataplaneImpl(SaiDataplane):
         flow = self.configuration.flows.flow(name=name)[-1]
 
         flow.tx_rx.port.tx_name = self.configuration.ports[0].name
-        flow.tx_rx.port.rx_name = self.configuration.ports[1].name
+        flow.tx_rx.port.rx_name = self.configuration.ports[0].name
 
         if (seconds_count > 0):
             flow.duration.fixed_seconds.seconds = seconds_count
@@ -348,6 +301,123 @@ class SaiDataplaneImpl(SaiDataplane):
 
         self.flows.append(flow)
         return flow
+
+    def check_flows_all_packets_metrics(self, flows = [], name = "Flow group", exp_tx = None, exp_rx = None, show = False):
+        if not flows:
+            print("Flows None or empty")
+            return False, None
+        if not exp_tx:
+            # check if all flows are fixed_packets
+            # sum of bool list == count of True in this list
+            if sum([flow.duration.choice == snappi.FlowDuration.FIXED_PACKETS for flow in flows]) == len(flows):
+                exp_tx = sum([flow.duration.fixed_packets.packets for flow in flows])
+            else:
+                print("{}: some flow in flow group doesn't configured to {}.".format( \
+                        name, snappi.FlowDuration.FIXED_PACKETS))
+                return False, None
+        if not exp_rx:
+            exp_rx = exp_tx
+
+        act_tx = 0
+        act_rx = 0
+        success = 0
+
+        for flow in flows:
+            tmp = self.check_flow_packets_metrics(flow)
+            success += tmp[0]
+            act_tx += tmp[1]['TX']
+            act_rx += tmp[1]['RX']
+
+        print(success)
+        success = success == len(flows)
+        print(success)
+
+        if show:
+            # flow group name | exp tx | act tx | exp rx | act rx
+            print("{} | {} | {} | {} | {}".format(name, exp_tx, act_tx, exp_rx, act_rx))
+
+        return success, { 'TX': act_tx, 'RX': act_rx }
+
+    # exp = expected
+    # act = actual
+    # (bool, {'TX': int, 'RX': int})
+    def check_flow_packets_metrics(self, flow: snappi.Flow, exp_tx = None, exp_rx = None, show = False):
+        if not exp_tx:
+            if flow.duration.choice == snappi.FlowDuration.FIXED_PACKETS:
+                exp_tx = flow.duration.fixed_packets.packets
+            else:
+                print("{}: check for packet count failed. Flow configured to {} instead of {}".format( \
+                        flow.name, flow.duration.choice, snappi.FlowDuration.FIXED_PACKETS))
+                return False, None
+        if not exp_rx:
+            exp_rx = exp_tx
+
+        req = self.api.metrics_request()
+        req.flow.flow_names = [ flow.name ]
+        req.flow.metric_names = [ snappi.FlowMetricsRequest.FRAMES_TX, snappi.FlowMetricsRequest.FRAMES_RX ]
+        res = self.api.get_metrics(req)
+
+        act_tx = res.flow_metrics[0].frames_tx
+        act_rx = res.flow_metrics[0].frames_rx
+
+        if show:
+            # flow name | exp tx | act tx | exp rx | act rx
+            print("{} | {} | {} | {} | {}".format(flow.name, exp_tx, act_tx, exp_rx, act_rx))
+
+        if exp_tx == act_tx and exp_rx == act_rx and \
+            res.flow_metrics[0].transmit == snappi.FlowMetric.STOPPED:
+            return True, { 'TX': act_tx, 'RX': act_rx }
+
+        return False, { 'TX': act_tx, 'RX': act_rx }
+
+    # TODO
+    def check_flows_all_seconds_metrics(self):
+        pass
+
+    def check_flow_seconds_metrics(self, flow: snappi.Flow, seconds = None, exp_tx = None, exp_rx = None, delta = None, show = False):
+        if not seconds:
+            if flow.duration.choice == snappi.FlowDuration.FIXED_SECONDS:
+                seconds = flow.duration.fixed_seconds.seconds
+            else:
+                print("{}: check for packet count failed. Flow configured to {} instead of {}".format( \
+                        flow.name, flow.duration.choice, snappi.FlowDuration.FIXED_SECONDS))
+                return False, None
+        if not exp_tx:
+            exp_tx = flow.rate.pps * seconds
+        if not exp_rx:
+            exp_rx = exp_tx
+        if not delta:
+            # default delta is 10% of exp_tx. If it 0 (seconds < 10) then delta == pps
+            tmp_delta = int(exp_tx / 10)
+            delta = tmp_delta if tmp_delta > 0 else flow.rate.pps
+
+        req = self.api.metrics_request()
+        req.flow.flow_names = [ flow.name ]
+        req.flow.metric_names = [ snappi.FlowMetricsRequest.FRAMES_TX, snappi.FlowMetricsRequest.FRAMES_RX ]
+        res = self.api.get_metrics(req)
+
+        act_tx = res.flow_metrics[0].frames_tx
+        act_rx = res.flow_metrics[0].frames_rx
+
+        if show:
+            # flow name | [exp tx - delta, ext_tx + delta] | act tx | [exp rx - delta, exp_rx + delta] | act rx
+            print("{} | [{}, {}] | {} | [{}, {}] | {}".format(flow.name, exp_tx - delta, exp_tx + delta, act_tx, \
+                                                                exp_rx - delta, exp_rx + delta, act_rx))
+
+        if act_tx in range(exp_tx - delta, exp_tx + delta) and \
+            act_rx in range(exp_rx - delta, exp_rx + delta) and \
+            res.flow_metrics[0].transmit == snappi.FlowMetric.STOPPED:
+            return True, { 'TX': act_tx, 'RX': act_rx }
+
+        return False, { 'TX': act_tx, 'RX': act_rx }
+
+    # TODO
+    def check_flows_all_continuous_metrics(self):
+        pass
+
+    # TODO
+    def check_flow_continuous_metrics(self, flow: snappi.Flow):
+        pass
 
     def add_simple_vxlan_packet(self,
         flow: snappi.Flow,
