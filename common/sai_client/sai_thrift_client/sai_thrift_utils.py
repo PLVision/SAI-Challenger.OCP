@@ -266,3 +266,4 @@ class ThriftConverter():
                 return None
         elif isinstance(obj_type, int):
             return SaiObjType(obj_type)
+
