@@ -59,5 +59,3 @@ def test_netdev_remove(npu, sai_hostif_obj):
     npu.remove(oid=sai_hostif_obj)
     assert npu.remote_iface_exists("Ethernet0") == False
 
-
-
