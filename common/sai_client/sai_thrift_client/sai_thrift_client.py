@@ -1,10 +1,10 @@
 import json
 import logging
 from functools import wraps
-from sai_client.sai_client import SaiClient
-from sai_client.sai_thrift_client.sai_thrift_utils import *
-from sai_data import SaiData
-from sai_data import SaiObjType
+from saichallenger.common.sai_client.sai_client import SaiClient
+from saichallenger.common.sai_client.sai_thrift_client.sai_thrift_utils import *
+from saichallenger.common.sai_data import SaiData
+from saichallenger.common.sai_data import SaiObjType
 from sai_thrift import sai_rpc, sai_adapter
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport

@@ -5,8 +5,8 @@ from sai_thrift import sai_headers
 from sai_thrift.ttypes import *
 from sai_thrift import ttypes
 from sai_thrift.sai_headers import *
-from sai_client.sai_thrift_client.sai_thrift_metadata import SaiMetadata
-from sai_data import SaiObjType
+from saichallenger.common.sai_client.sai_thrift_client.sai_thrift_metadata import SaiMetadata
+from saichallenger.common.sai_data import SaiObjType
 
 class ThriftConverter():
     def convert_attributes_to_thrift(attributes):
@@ -253,8 +253,8 @@ class ThriftConverter():
         "SAI_OBJECT_TYPE_PORT" => SaiObjType.PORT
         1                      => SaiObjType.PORT
         """
-        if isinstance(obj_type, enum.Enum):
-            return SaiObjType(obj_type.value)
+        if isinstance(obj_type, SaiObjType):
+            return obj_type
         elif isinstance(obj_type, str):
             prefix = 'SAI_OBJECT_TYPE_'
             obj_type_without_prefix = obj_type
