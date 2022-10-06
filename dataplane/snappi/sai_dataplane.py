@@ -221,7 +221,7 @@ class SaiDataplaneImpl(SaiDataplane):
         if step == None:
             step = "00:00:00:00:00:01"
         if number == 0:
-            return str(macaddress.MAC(mac))
+            return str(macaddress.MAC(mac)).replace('-', ':')
         return str(macaddress.MAC(int(macaddress.MAC(mac)) + number * int(macaddress.MAC(step)))).replace('-', ':')
 
     def configure_vxlan_packet(self, VIP: dict, VNI: dict, CA_SMAC: dict, CA_DIP: dict):
@@ -237,7 +237,6 @@ class SaiDataplaneImpl(SaiDataplane):
 
         print("Adding flows {} > {}:".format(self.configuration.ports[0].name, self.configuration.ports[1].name))
         vip_val = VIP['start']
-        flow_count = 0
         for vip in range(0, get_count(VIP)):
             vni_val = VNI['start']
             print(f"\tVIP {vip_val}")
@@ -246,20 +245,20 @@ class SaiDataplaneImpl(SaiDataplane):
                 print(f"\t\tVNI {vni_val}")
                 ca_smac_val = CA_SMAC['start']
 
-                for ca_smac in range(0, get_count(CA_SMAC)):
-                    print(f"\t\t\tCA SMAC: {ca_smac_val}")
-                    # for ca_dip in range(0, get_count(CA_DIP)):
+                # for ca_smac in range(0, get_count(CA_SMAC)):
+                if True:
+                    ca_smac = vni % get_count(CA_SMAC)
+                    print(f"\t\t\tCA SMAC: {self.get_next_mac(ca_smac_val, number = ca_smac)}")
                     print(f"\t\t\t\tCA DIP {CA_DIP.get('start')}, count: {get_count(CA_DIP)}, step: {get_step(CA_DIP)}")
 
                     flow = self.add_flow("flow {} > {} |vip#{}|vni#{}|ca_dip#{}|ca_mac#{}".format(
                                           self.configuration.ports[0].name, self.configuration.ports[1].name, vip, vni, CA_DIP['start'], ca_smac),
                                          packet_count=get_count(CA_DIP))
-                    flow_count += 1
                     self.add_ethernet_header(flow, dst_mac="00:00:02:03:04:05", src_mac="00:00:05:06:06:06")
                     self.add_ipv4_header(flow, dst_ip=vip_val, src_ip="172.16.1.1")
                     self.add_udp_header(flow, dst_port=80, src_port=11638)
                     self.add_vxlan_header(flow, vni=vni_val)
-                    self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=ca_smac_val)
+                    self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=self.get_next_mac(ca_smac_val, number = ca_smac))
 
                     self.add_ipv4_header(flow, dst_ip=CA_DIP['start'], src_ip="10.1.1.10", dst_step=get_step(CA_DIP), dst_count=get_count(CA_DIP),
                                          dst_choice=snappi.PatternFlowIpv4Dst.INCREMENT)
@@ -271,7 +270,7 @@ class SaiDataplaneImpl(SaiDataplane):
 
             vip_val = self.get_next_ip(vip_val, get_step(VIP))
 
-        print(f">>> FLOWS: {flow_count}")
+        print(f">>> FLOWS: {len(self.flows)}")
 
     def prepare_vxlan_packets(self, test_conf: dict):
         VIP = test_conf['DASH_VIP']['vpe']['IPV4']
