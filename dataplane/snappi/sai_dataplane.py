@@ -239,11 +239,11 @@ class SaiDataplaneImpl(SaiDataplane):
                 print(f"\t\tVNI {vni_val}")
                 ca_smac_val = ca_smac.start
 
-                for ca_smac_number in range(0, ca_smac.count):
-                # if True:
-                    # ca_smac_number = vni_number % ca_smac.count
-                    print(f"\t\t\tCA SMAC: {ca_smac_val}")
-                    # print(f"\t\t\tCA SMAC: {self.get_next_mac(ca_smac_val, number = ca_smac_number)}")
+                # for ca_smac_number in range(0, ca_smac.count):
+                if True:
+                    ca_smac_number = vni_number % ca_smac.count
+                    # print(f"\t\t\tCA SMAC: {ca_smac_val}")
+                    print(f"\t\t\tCA SMAC: {self.get_next_mac(ca_smac_val, step=ca_smac.step, number=ca_smac_number)}")
                     print(f"\t\t\t\tCA DIP {ca_dip.start}, count: {ca_dip.count}, step: {ca_dip.step}")
 
                     flow = self.add_flow("flow {} > {} |vip#{}|vni#{}|ca_dip#{}|ca_mac#{}".format(
@@ -254,14 +254,14 @@ class SaiDataplaneImpl(SaiDataplane):
                     self.add_ipv4_header(flow, dst_ip=vip_val, src_ip="172.16.1.1")
                     self.add_udp_header(flow, dst_port=80, src_port=11638)
                     self.add_vxlan_header(flow, vni=vni_val)
-                    self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=ca_smac_val)
-                    # self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=self.get_next_mac(ca_smac_val, number = ca_smac_number))
+                    # self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=ca_smac_val)
+                    self.add_ethernet_header(flow, dst_mac="02:02:02:02:02:02", src_mac=self.get_next_mac(ca_smac_val, step=ca_smac.step, number=ca_smac_number))
 
                     self.add_ipv4_header(flow, dst_ip=ca_dip.start, src_ip="10.1.1.10", dst_step=ca_dip.step, dst_count=ca_dip.count,
                                         dst_choice=snappi.PatternFlowIpv4Dst.INCREMENT)
                     self.add_udp_header(flow)
 
-                    ca_smac_val = self.get_next_mac(ca_smac_val, ca_smac.step)
+                    # ca_smac_val = self.get_next_mac(ca_smac_val, ca_smac.step)
 
                 vni_val += vni.step
 
