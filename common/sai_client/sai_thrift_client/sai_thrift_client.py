@@ -1,15 +1,11 @@
 import json
 import logging
 from functools import wraps
-from sai import SaiObjType
 from sai_client.sai_client import SaiClient
-from sai_client.sai_thrift_client.sai_thrift_helper import *
-from sai_client.sai_thrift_client.sai_thrift_utils import object_id
-from sai_client.sai_thrift_client.sai_thrift_utils import convert_to_sai_obj_type
+from sai_client.sai_thrift_client.sai_thrift_utils import *
 from sai_data import SaiData
 from sai_data import SaiObjType
 from sai_thrift import sai_rpc, sai_adapter
-from sai_thrift.sai_adapter import *
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TSocket, TTransport
 
@@ -75,11 +71,11 @@ class SaiThriftClient(SaiClient):
 
     def get_object_type(self, oid, default=None) -> SaiObjType:
         if default != None:
-            return convert_to_sai_obj_type(default)
+            return ThriftConverter.convert_to_sai_obj_type(default)
 
         if oid != None:
             try:
-                return SaiObjType(self.thrift_client.sai_thrift_object_type_query(object_id(oid)))
+                return SaiObjType(self.thrift_client.sai_thrift_object_type_query(ThirftConverter.object_id(oid)))
             except Exception as e:
                 raise Exception
         return SaiObjType(0)
@@ -89,15 +85,15 @@ class SaiThriftClient(SaiClient):
             raise ValueError('Both oid and key are specified')
 
         if oid is not None:
-            oid = object_id(oid)
+            oid = ThriftConverter.object_id(oid)
 
         obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
-        object_key = convert_key_to_thrift(obj_type_name, key)
+        object_key = ThriftConverter.convert_key_to_thrift(obj_type_name, key)
         if oid is not None:
             object_key[f'{obj_type_name}_oid'] = oid
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}')
 
-        attr_kwargs = dict(convert_attributes_to_thrift(attrs))
+        attr_kwargs = dict(ThriftConverter.convert_attributes_to_thrift(attrs))
 
         return sai_thrift_function(self.thrift_client, **object_key, **attr_kwargs)
 
@@ -106,17 +102,17 @@ class SaiThriftClient(SaiClient):
             raise ValueError('Both oid and key are specified')
 
         if oid is not None:
-            oid = object_id(oid)
+            oid = ThriftConverter.object_id(oid)
 
         obj_type_name = self.get_object_type(oid, default=obj_type).name.lower()
-        object_key = convert_key_to_thrift(obj_type_name, key)
+        object_key = ThriftConverter.convert_key_to_thrift(obj_type_name, key)
         sai_thrift_function = getattr(sai_adapter, f'sai_thrift_{operation}_{obj_type_name}_attribute')
 
         result = []
 
-        for attr, value in convert_attributes_to_thrift(attrs):
+        for attr, value in ThriftConverter.convert_attributes_to_thrift(attrs):
             thrift_attr_value = sai_thrift_function(self.thrift_client, **object_key, **{attr: value})
-            result.extend(convert_attributes_from_thrift(thrift_attr_value))
+            result.extend(ThriftConverter.convert_attributes_from_thrift(thrift_attr_value))
 
         return result
 
