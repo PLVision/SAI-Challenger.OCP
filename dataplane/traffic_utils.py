@@ -103,6 +103,7 @@ def compare_pkts2(pkt1, pkt2):
 
     return True, "", p1, p2
 
+
 # number - count of iterations to add step to ip
 def get_next_ip(ip="192.168.0.1", step="0.0.0.1", number=1) -> str:
     if ip == None:
@@ -113,8 +114,9 @@ def get_next_ip(ip="192.168.0.1", step="0.0.0.1", number=1) -> str:
         return str(ipaddress.IPv4Address(ip))
     return str(ipaddress.IPv4Address(int(ipaddress.IPv4Address(ip)) + number * int(ipaddress.IPv4Address(step))))
 
+
 # number - count of iterations to add step to mac
-def get_next_mac(mac="00:00:00:AA:BB:01", step="00:00:00:00:00:01", number=1):
+def get_next_mac(mac="00:00:00:AA:BB:01", step="00:00:00:00:00:01", number=1) -> str:
     if mac == None:
         mac = "00:00:00:AA:BB:01"
     if step == None:

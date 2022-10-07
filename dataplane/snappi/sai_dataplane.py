@@ -203,12 +203,14 @@ class SaiDataplaneImpl(SaiDataplane):
         return flow_rx == packets
 
     def add_flow(self,
-                 name=f"flow_{time.time()}",
+                 name,
                  packet_count=1,
                  seconds_count=0,
                  pps=10,
                  force_pps=False
                  ):
+
+        name = name or f"flow_{time.time()}"
         flow = self.configuration.flows.flow(name=name)[-1]
 
         flow.tx_rx.port.tx_name = self.configuration.ports[0].name
