@@ -71,11 +71,15 @@ class SnappiDataPlaneUtilsWrapper:
 
         self.set_config()
 
+    nameCounter = 0
+
     def add_raw_stream(self, packet, port_id, packets_count=1, stream_name=None):
 
         port_cfg = self.configuration.ports.serialize('dict')[port_id]
 
-        stream_name = stream_name or "stream_{}_{}_{}".format(port_id, id(packet), randint(1, 9999))
+        #stream_name = stream_name or "stream_{}_{}_{}".format(port_id, id(packet), randint(1, 9999))
+        stream_name = stream_name or "stream_{}_{}_{}".format(port_id, id(packet), self.nameCounter)
+        self.nameCounter += 1
 
         flow = self.configuration.flows.flow(name=stream_name)[-1]
         flow.tx_rx.port.tx_name = port_cfg['name']
@@ -161,7 +165,7 @@ class SnappiDataPlaneUtilsWrapper:
         capture_req = self.api.capture_request()
         capture_req.port_name = port_name
 
-        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step)
+        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step, self.start_capture)
 
         logging.info(f'Verifying empty capture from port {port_name}')
         assert not any(pcap_bytes), f"A packet was received on device 0, port {port_id}:{port_name}, but we expected no packets."
@@ -181,7 +185,7 @@ class SnappiDataPlaneUtilsWrapper:
         capture_req = self.api.capture_request()
         capture_req.port_name = port_name
 
-        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step)
+        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step, self.start_capture)
 
         cap_dict[port_name] = []
         try:
@@ -263,7 +267,7 @@ class SnappiDataPlaneUtilsWrapper:
         capture_req = self.api.capture_request()
         capture_req.port_name = port_name
 
-        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step)
+        pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, step, self.start_capture)
 
         cap_dict[port_name] = []
 
@@ -317,7 +321,7 @@ class SnappiDataPlaneUtilsWrapper:
             # capture_req = self.api.capture_request()
             # capture_req.port_name = port_name
 
-            # pcap_bytes = pcap_bts_polling(self.api.get_capture, capture_req, timeout, step)
+            # pcap_bytes = pcap_bts_polling(self.api.get_capture, capture_req, timeout, step, self.start_capture)
 
             # assert len(pcap_bytes.getvalue()) == 0, \
             #     "A packet was received on device {}, port {}:{}, but we expected no packets.".format(
@@ -352,7 +356,7 @@ class SnappiDataPlaneUtilsWrapper:
             logging.info(f'Fetching capture from port {port_name}')
             capture_req = self.api.capture_request()
             capture_req.port_name = port_name
-            pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout)
+            pcap_bytes = tt.pcap_bts_polling(self.api.get_capture, capture_req, timeout, self.start_capture)
             cap_dict[port_name] = pcap_bytes
             timeout = 0  # Reduce timeout
 

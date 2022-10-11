@@ -6,7 +6,8 @@ default_step = 0.2
 default_timeout = 2
 default_n_timeout = 2
 
-def pcap_bts_polling(func, func_arg, timeout=None, step=None):
+
+def pcap_bts_polling(func, func_arg, timeout=None, step=None, postpolling_function=None):
     if timeout is None:
         timeout = default_timeout
     if step is None:
@@ -16,9 +17,13 @@ def pcap_bts_polling(func, func_arg, timeout=None, step=None):
     while True:
         pcap_bts = func(func_arg)
         if len(pcap_bts.getvalue()) > 0:
+            if not (postpolling_function is None):
+                postpolling_function()
             return pcap_bts
         time.sleep(step)
         if time.time() > end_time:
+            if not (postpolling_function is None):
+                postpolling_function()
             return pcap_bts
 
 
