@@ -6,7 +6,6 @@ default_step = 0.2
 default_timeout = 2
 default_n_timeout = 2
 
-
 def pcap_bts_polling(func, func_arg, timeout=None, step=None):
     if timeout is None:
         timeout = default_timeout
