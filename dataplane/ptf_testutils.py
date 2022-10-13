@@ -1,6 +1,5 @@
 import logging
 import sys
-from random import randint
 
 import dpkt
 from scapy.layers.l2 import Ether
@@ -71,14 +70,18 @@ class SnappiDataPlaneUtilsWrapper:
 
         self.set_config()
 
-    nameCounter = 0
+    def create_default_stream_name(self, port_id, packet_id):
+        if hasattr(self, "default_stream_name_number"):
+            self.default_stream_name_number += 1
+        else:
+            self.default_stream_name_number = 0
+        return "stream_{}_{}_{}".format(port_id, packet_id, self.default_stream_name_number)
 
     def add_raw_stream(self, packet, port_id, packets_count=1, stream_name=None):
 
         port_cfg = self.configuration.ports.serialize('dict')[port_id]
 
-        stream_name = stream_name or "stream_{}_{}_{}".format(port_id, id(packet), self.nameCounter)
-        self.nameCounter += 1
+        stream_name = stream_name or self.create_default_stream_name(port_id, id(packet))
 
         flow = self.configuration.flows.flow(name=stream_name)[-1]
         flow.tx_rx.port.tx_name = port_cfg['name']
