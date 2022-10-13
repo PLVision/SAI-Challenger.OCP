@@ -34,13 +34,13 @@ class SnappiDataPlaneUtilsWrapper:
             cls._instances[id_d] = object.__new__(cls)
             return cls._instances[id_d]
 
-    def add_tcp_stream(self, packet, port_id, packets_count=1, stream_name=None):
+    def add_tcp_flow(self, packet, port_id, packets_count=1, flow_name=None):
 
         port_cfg = self.configuration.ports.serialize('dict')[port_id]
 
-        stream_name = stream_name or "stream_{}_{}".format(port_id, id(packet))
+        flow_name = flow_name or "flow_{}_{}".format(port_id, id(packet))
 
-        flow = self.configuration.flows.flow(name=stream_name)[-1]
+        flow = self.configuration.flows.flow(name=flow_name)[-1]
         flow.tx_rx.port.tx_name = port_cfg['name']
 
         flow.size.fixed = len(packet)
@@ -70,20 +70,20 @@ class SnappiDataPlaneUtilsWrapper:
 
         self.set_config()
 
-    def create_default_stream_name(self, port_id, packet_id):
-        if hasattr(self, "default_stream_name_number"):
-            self.default_stream_name_number += 1
+    def create_default_flow_name(self, port_id, packet_id):
+        if hasattr(self, "default_flow_name_number"):
+            self.default_flow_name_number += 1
         else:
-            self.default_stream_name_number = 0
-        return "stream_{}_{}_{}".format(port_id, packet_id, self.default_stream_name_number)
+            self.default_flow_name_number = 0
+        return "flow_{}_{}_{}".format(port_id, packet_id, self.default_flow_name_number)
 
-    def add_raw_stream(self, packet, port_id, packets_count=1, stream_name=None):
+    def add_raw_flow(self, packet, port_id, packets_count=1, flow_name=None):
 
         port_cfg = self.configuration.ports.serialize('dict')[port_id]
 
-        stream_name = stream_name or self.create_default_stream_name(port_id, id(packet))
+        flow_name = flow_name or self.create_default_flow_name(port_id, id(packet))
 
-        flow = self.configuration.flows.flow(name=stream_name)[-1]
+        flow = self.configuration.flows.flow(name=flow_name)[-1]
         flow.tx_rx.port.tx_name = port_cfg['name']
 
         flow.size.fixed = len(packet)
@@ -104,7 +104,7 @@ class SnappiDataPlaneUtilsWrapper:
 
     def send_packet(self, port_id, pkt, count=1):
         """ptf.testutils.send_packet"""
-        self.add_raw_stream(pkt, port_id, packets_count=count)
+        self.add_raw_flow(pkt, port_id, packets_count=count)
         self.start_traffic()
 
     def get_capture_function_and_request(self, port_name):
