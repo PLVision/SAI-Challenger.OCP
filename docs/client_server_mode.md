@@ -7,12 +7,14 @@ sudo apt install -y git docker docker.io
 sudo usermod -aG docker $USER
 ```
 
+**NOTE**: It's recommended to use official Docker installation guide.
+
 ### Clone repository
 ```
-git clone https://github.com/PLVision/SAI-Challenger.OCP
-cd SAI-Challenger.OCP
+git clone https://github.com/opencomputeproject/SAI-Challenger
+cd SAI-Challenger
 git submodule update --init --recursive
-git checkout dash-testing
+git checkout multi-api-support
 ```
 
 ### Prepare docker images
