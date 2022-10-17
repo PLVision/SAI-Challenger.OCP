@@ -82,7 +82,7 @@ class SaiRedisClient(SaiClient):
         else:
             vid = self.__alloc_vid(obj_type)
             object_id = object_id + vid
-            if obj_type.value == SaiObjType.SWITCH.value:
+            if obj_type == SaiObjType.SWITCH:
                 self.switch_oid = vid
 
         if type(attrs) != str:
@@ -601,7 +601,7 @@ class SaiRedisClient(SaiClient):
 
     def __alloc_vid(self, obj_type):
         vid = None
-        if obj_type.value == SaiObjType.SWITCH.value:
+        if obj_type == SaiObjType.SWITCH:
             if self.r.get("VIDCOUNTER") is None:
                 self.r.set("VIDCOUNTER", 0)
                 vid = 0
