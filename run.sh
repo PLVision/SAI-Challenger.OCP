@@ -14,6 +14,7 @@ ASIC_PATH=""
 TARGET=""
 OPTS=""
 COMMAND="start"
+PREFIX=""
 
 print-help() {
     echo
@@ -30,6 +31,8 @@ print-help() {
     echo "     Start or stop docker. Default (start)"
     echo "  -p Run Docker in --privileged mode"
     echo "  -r Remove Docker after run"
+    echo "  -n NAME_PREFIX"
+    echo "     Name prefix to container image"
     echo
     exit 0
 }
@@ -51,6 +54,10 @@ while [[ $# -gt 0 ]]; do
         ;;
         "-t"|"--target")
             TARGET="$2"
+            shift
+        ;;
+        "-n"|"--prefix")
+            PREFIX="$2"
             shift
         ;;
         "-p")
@@ -133,36 +140,36 @@ if [ "${COMMAND}" = "start" ]; then
 
     # Start Docker container
     if [ "${IMAGE_TYPE}" = "standalone" ]; then
-        docker run --name sc-${ASIC_TYPE}-${TARGET}-run \
+        docker run --name ${PREFIX}-sc-${ASIC_TYPE}-${TARGET}-run \
         -v $(pwd):/sai-challenger \
         --cap-add=NET_ADMIN \
         ${OPTS} \
         --device /dev/net/tun:/dev/net/tun \
-        -d sc-${ASIC_TYPE}-${TARGET}
+        -d ${PREFIX}-sc-${ASIC_TYPE}-${TARGET}
     elif [ "${IMAGE_TYPE}" = "server" ]; then
-        docker run --name sc-server-${ASIC_TYPE}-${TARGET}-run \
+        docker run --name ${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET}-run \
         --cap-add=NET_ADMIN \
         ${OPTS} \
         --device /dev/net/tun:/dev/net/tun \
-        -d sc-server-${ASIC_TYPE}-${TARGET}
+        -d ${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET}
     else
-        docker run --name sc-client-run \
+        docker run --name ${PREFIX}-sc-client-run \
         -v $(pwd):/sai-challenger \
         --cap-add=NET_ADMIN \
         --device /dev/net/tun:/dev/net/tun \
         ${OPTS} \
-        -d sc-client
+        -d ${PREFIX}-sc-client
     fi
 
 elif [ "${COMMAND}" = "stop" ]; then
 
     # Stop Docker container
     if [ "${IMAGE_TYPE}" = "standalone" ]; then
-        stop_docker_container sc-${ASIC_TYPE}-${TARGET}-run
+        stop_docker_container ${PREFIX}-sc-${ASIC_TYPE}-${TARGET}-run
     elif [ "${IMAGE_TYPE}" = "server" ]; then
-        stop_docker_container sc-server-${ASIC_TYPE}-${TARGET}-run
+        stop_docker_container ${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET}-run
     else
-        stop_docker_container sc-client-run
+        stop_docker_container ${PREFIX}-sc-client-run
     fi
 
 else
