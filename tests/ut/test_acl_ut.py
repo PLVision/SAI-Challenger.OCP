@@ -103,12 +103,10 @@ class TestIngressACL:
         entry_attrs.append("SAI_ACL_ENTRY_ATTR_ACTION_COUNTER")
         entry_attrs.append(counter_oid)
 
-        entry_oid = npu.create(obj_type=SaiObjType.ACL_ENTRY, attrs=entry_attrs, do_assert=False)
-        if False: # ValueError: too many values to unpack
-            status, entry_oid = npu.create(obj_type=SaiObjType.ACL_ENTRY, attrs=entry_attrs, do_assert=False)
-            if status != "SAI_STATUS_SUCCESS":
-                npu.remove(oid=counter_oid)
-            assert status == "SAI_STATUS_SUCCESS"
+        status, entry_oid = npu.create(obj_type=SaiObjType.ACL_ENTRY, attrs=entry_attrs, do_assert=False)
+        if status != "SAI_STATUS_SUCCESS":
+            npu.remove(oid=counter_oid)
+        assert status == "SAI_STATUS_SUCCESS"
 
         # Cache OIDs
         acl_state["entries"].append(entry_oid)
