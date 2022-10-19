@@ -34,7 +34,8 @@ def sai_bport_obj(npu):
     bport_attrs
 )
 def test_get_before_set_attr(npu, dataplane, sai_bport_obj, attr, attr_type):
-    status, data = npu.get_by_type(sai_bport_obj, attr, attr_type, do_assert=False)
+    # status, data = npu.get_by_type(sai_bport_obj, attr, attr_type, do_assert=False)
+    status, data = npu.get_by_type(sai_bport_obj, attr, attr_type)
     npu.assert_status_success(status)
 
     if attr == "SAI_BRIDGE_PORT_ATTR_PORT_ID":

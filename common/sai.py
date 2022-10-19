@@ -199,11 +199,11 @@ class Sai(AbstractEntity):
         return self.sai_client.bulk_set(obj, keys, attrs, do_assert)
 
     # Stats
-    def get_stats(self, oid=None, obj_type=None, key=None, attrs=None):
+    def get_stats(self, *, oid=None, obj_type=None, key=None, attrs=None):
         return self.sai_client.get_stats(oid, obj_type, key, attrs)
 
-    def clear_stats(self, oid=None, obj_type=None, key=None, attrs=None):
-        return self.sai_client.clear_stats(oid, obj_type, key, attrs)
+    def clear_stats(self, *, oid=None, obj_type=None, key=None, attrs=None):
+        return self.sai_client.clear_stats(oid=oid, obj_type=obj_type, key=key, attrs=attrs)
 
     # Flush FDB
     def flush_fdb_entries(self, attrs=None):
@@ -322,16 +322,16 @@ class Sai(AbstractEntity):
         elif attr_type in unsupported_types:
             status, data = "not supported", None
         elif attr_type.startswith("sai_") or attr_type == "" or attr_type == "char":
-            status, data = self.get(obj, [attr, ""])
+            status, data = self.get(oid=obj, attrs=[attr, ""])
         else:
             assert False, f"Unsupported attribute type: get_by_type({obj}, {attr}, {attr_type})"
         return status, data
 
     def get_list(self, obj, attr, value):
-        status, data = self.get(obj, [attr, "1:" + value], False)
+        status, data = self.get(oid=obj, attrs=[attr, "1:" + value], do_assert=False)
         if status == "SAI_STATUS_BUFFER_OVERFLOW":
             in_data = self._make_list(data.uint32(), value)
-            data = self.get(obj, [attr, in_data])
+            data = self.get(oid=obj, attrs=[attr, in_data])
         else:
             assert status == 'SAI_STATUS_SUCCESS', f"get_list({obj}, {attr}, {value}) --> {status}"
 
