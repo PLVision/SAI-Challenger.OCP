@@ -124,6 +124,8 @@ class SaiRedisClient(SaiClient):
 
         if do_assert:
             assert status[2] == 'SAI_STATUS_SUCCESS', f"set({oid}, {obj_type}, {key}, {attr}) --> {status}"
+        else:
+            return status[2]
 
     def get(self, oid, obj_type, key, attrs, do_assert = True):
         object_id = self._form_redis_style_object_id(oid=oid, obj_type=obj_type, key=key)
