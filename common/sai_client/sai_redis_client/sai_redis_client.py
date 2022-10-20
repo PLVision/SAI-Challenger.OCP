@@ -2,8 +2,6 @@ import json
 import redis
 import time
 
-import pdb
-
 from saichallenger.common.sai_client.sai_client import SaiClient
 from saichallenger.common.sai_data import SaiObjType, SaiData
 
@@ -77,8 +75,6 @@ class SaiRedisClient(SaiClient):
     # CRUD
     def create(self, obj_type, key, attrs, do_assert):
         vid = None
-
-        pdb.set_trace()
 
         object_id = "SAI_OBJECT_TYPE_" + obj_type.name + ":"
         if key is not None:
@@ -751,8 +747,11 @@ class SaiRedisClient(SaiClient):
         # Make redis-style OIDs
         obj = obj.replace('oid:0x', '0x')
         obj = obj.replace('0x', 'oid:0x')
-        attrs = attrs.replace('oid:0x', '0x')
+        attrs = attrs.replace('oid:0x', 'OID_HERE')
+        attrs = attrs.replace('mask:0x', 'MASK_HERE')
         attrs = attrs.replace('0x', 'oid:0x')
+        attrs = attrs.replace('OID_HERE', 'oid:0x')
+        attrs = attrs.replace('MASK_HERE', 'mask:0x')
 
         self.r.lpush("ASIC_STATE_KEY_VALUE_OP_QUEUE", obj, attrs, op)
         self.r.publish("ASIC_STATE_CHANNEL@1", "G")
