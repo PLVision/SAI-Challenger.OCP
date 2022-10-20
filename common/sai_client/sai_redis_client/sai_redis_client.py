@@ -2,6 +2,8 @@ import json
 import redis
 import time
 
+import pdb
+
 from saichallenger.common.sai_client.sai_client import SaiClient
 from saichallenger.common.sai_data import SaiObjType, SaiData
 
@@ -75,6 +77,8 @@ class SaiRedisClient(SaiClient):
     # CRUD
     def create(self, obj_type, key, attrs, do_assert):
         vid = None
+
+        pdb.set_trace()
 
         object_id = "SAI_OBJECT_TYPE_" + obj_type.name + ":"
         if key is not None:
@@ -357,7 +361,7 @@ class SaiRedisClient(SaiClient):
         if type(attrs) != str:
             attrs = json.dumps(attrs)
 
-        status = self.__operate(oid, attrs, "Sget_stats")
+        status = self.__operate(object_id, attrs, "Sget_stats")
 
         assert status[2] == 'SAI_STATUS_SUCCESS'
 
@@ -369,7 +373,7 @@ class SaiRedisClient(SaiClient):
         if type(attrs) != str:
             attrs = json.dumps(attrs)
 
-        status = self.__operate(oid, attrs, "Sclear_stats")
+        status = self.__operate(object_id, attrs, "Sclear_stats")
 
         assert status[2] == 'SAI_STATUS_SUCCESS'
 

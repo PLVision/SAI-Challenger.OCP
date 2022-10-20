@@ -200,7 +200,7 @@ class Sai(AbstractEntity):
 
     # Stats
     def get_stats(self, *, oid=None, obj_type=None, key=None, attrs=None):
-        return self.sai_client.get_stats(oid, obj_type, key, attrs)
+        return self.sai_client.get_stats(oid=oid, obj_type=obj_type, key=key, attrs=attrs)
 
     def clear_stats(self, *, oid=None, obj_type=None, key=None, attrs=None):
         return self.sai_client.clear_stats(oid=oid, obj_type=obj_type, key=key, attrs=attrs)

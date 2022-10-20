@@ -31,8 +31,8 @@ def test_stats(npu, dataplane):
 
     # Get queues stats
     for queue_oid in queue_oids:
-        cntrs = npu.get_stats(queue_oid,
-                              [
+        cntrs = npu.get_stats(oid=queue_oid,
+                              attrs=[
                                   'SAI_QUEUE_STAT_PACKETS', '',
                                   'SAI_QUEUE_STAT_BYTES', ''
                               ]).counters()
