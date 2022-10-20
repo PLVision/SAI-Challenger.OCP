@@ -126,7 +126,7 @@ fi
 # Build target Docker image
 pushd "${ASIC_PATH}/${TARGET}"
 if [ "${IMAGE_TYPE}" = "standalone" ]; then
-    docker build -f Dockerfile -t ${PREFIX}-sc-${ASIC_TYPE}-${TARGET} .
+    docker build -f Dockerfile --build-arg=prefix=${PREFIX} -t ${PREFIX}-sc-${ASIC_TYPE}-${TARGET} .
 elif [ "${IMAGE_TYPE}" = "server" ]; then
     docker build -f Dockerfile.server --build-arg=prefix=${PREFIX} -t ${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET} .
 fi
