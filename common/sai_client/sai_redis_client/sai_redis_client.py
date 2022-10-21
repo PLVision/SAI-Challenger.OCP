@@ -749,6 +749,12 @@ class SaiRedisClient(SaiClient):
         # Make redis-style OIDs
         obj = obj.replace('oid:0x', '0x')
         obj = obj.replace('0x', 'oid:0x')
+
+        # The following logic adds a prefix "oid:" to odject ID it attrs
+        # if there are no this prefix. And there is a workaround
+        # for cases when the inserts "oid:" incorrectly.
+        # There must be an issue on github to replace it with
+        # a normal logic
         attrs = attrs.replace('oid:0x', 'OID_HERE')
         attrs = attrs.replace('mask:0x', 'MASK_HERE')
         attrs = attrs.replace('0x', 'oid:0x')
