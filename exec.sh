@@ -13,7 +13,7 @@ ASIC_TYPE=""
 ASIC_PATH=""
 TARGET=""
 EXEC_CMD=""
-NAME=""
+PREFIX=""
 
 print-help() {
     echo
@@ -26,8 +26,8 @@ print-help() {
     echo "     ASIC to be tested"
     echo "  -t TARGET"
     echo "     Target device with this NPU"
-    echo "  -n CONTAINER_NAME"
-    echo "     specify non-default container name"
+    echo "  -n NAME_PREFIX"
+    echo "     specify a prefix if container name has it"
     echo
     exit 0
 }
@@ -59,9 +59,9 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
         ;;
-        "-n"|"--name")
+        "-n"|"--prefix")
             if [ -z ${EXEC_CMD} ]; then
-                NAME="$2"
+                PREFIX="$2"
             else
                 EXEC_CMD="${EXEC_CMD} ${1} ${2}"
             fi
@@ -142,14 +142,12 @@ print-start-options() {
 trap print-start-options EXIT
 
 # Start Docker container
-if [ -n "${NAME}" ]; then
-    CONTAINER="${NAME}"
-elif [ "${IMAGE_TYPE}" = "standalone" ]; then
-    CONTAINER="sc-${ASIC_TYPE}-${TARGET}-run"
+if [ "${IMAGE_TYPE}" = "standalone" ]; then
+    CONTAINER="${PREFIX}-sc-${ASIC_TYPE}-${TARGET}-run"
 elif [ "${IMAGE_TYPE}" = "server" ]; then
-    CONTAINER="sc-server-${ASIC_TYPE}-${TARGET}-run"
+    CONTAINER="${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET}-run"
 else
-    CONTAINER="sc-client-run"
+    CONTAINER="${PREFIX}-sc-client-run"
 fi
 
 docker exec -ti ${CONTAINER} ${EXEC_CMD}
