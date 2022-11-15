@@ -1,4 +1,5 @@
-FROM sc-server-base
+ARG prefix=""
+FROM ${prefix}-sc-server-base
 
 MAINTAINER andriy.kokhan@gmail.com
 

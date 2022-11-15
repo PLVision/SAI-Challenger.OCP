@@ -12,6 +12,7 @@ IMAGE_TYPE="standalone"
 ASIC_TYPE=""
 ASIC_PATH=""
 TARGET=""
+PREFIX=""
 
 print-help() {
     echo
@@ -24,6 +25,8 @@ print-help() {
     echo "     ASIC to be tested"
     echo "  -t TARGET"
     echo "     Target device with this NPU"
+    echo "  -n NAME_PREFIX"
+    echo "     Add a prefix to image name"
     echo
     exit 0
 }
@@ -45,6 +48,10 @@ while [[ $# -gt 0 ]]; do
         ;;
         "-t"|"--target")
             TARGET="$2"
+            shift
+        ;;
+        "-n"|"--prefix")
+            PREFIX="$2"
             shift
         ;;
     esac
@@ -106,22 +113,22 @@ trap print-build-options EXIT
 
 # Build base Docker image
 if [ "${IMAGE_TYPE}" = "standalone" ]; then
-    docker build -f Dockerfile -t sc-base .
+    docker build -f Dockerfile -t ${PREFIX}-sc-base .
 elif [ "${IMAGE_TYPE}" = "server" ]; then
     find ${ASIC_PATH}/../ -type f -name \*.py -exec install -D {} .build/{} \;
     find ${ASIC_PATH}/../ -type f -name \*.json -exec install -D {} .build/{} \;
-    docker build -f Dockerfile.server -t sc-server-base .
+    docker build -f Dockerfile.server -t ${PREFIX}-sc-server-base .
     rm -rf .build/
 else
-    docker build -f Dockerfile.client -t sc-client .
+    docker build -f Dockerfile.client -t ${PREFIX}-sc-client .
 fi
 
 # Build target Docker image
 pushd "${ASIC_PATH}/${TARGET}"
 if [ "${IMAGE_TYPE}" = "standalone" ]; then
-    docker build -f Dockerfile -t sc-${ASIC_TYPE}-${TARGET} .
+    docker build -f Dockerfile --build-arg=prefix=${PREFIX} -t ${PREFIX}-sc-${ASIC_TYPE}-${TARGET} .
 elif [ "${IMAGE_TYPE}" = "server" ]; then
-    docker build -f Dockerfile.server -t sc-server-${ASIC_TYPE}-${TARGET} .
+    docker build -f Dockerfile.server --build-arg=prefix=${PREFIX} -t ${PREFIX}-sc-server-${ASIC_TYPE}-${TARGET} .
 fi
 popd
 
