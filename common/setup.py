@@ -1,8 +1,8 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-    name="sai-challenger",
-    version='0.1',
+    name="saichallenger-common",
+    version='0.2',
     description='SAI Challenger core library',
     license='Apache 2.0',
     author='Andriy Kokhan',
@@ -11,5 +11,5 @@ setup(
     install_requires=[
         'ptf',
     ],
-    py_modules=['sai', 'sai_npu', 'sai_dataplane', 'sai_environment', 'sai_abstractions', 'sai_dpu', 'sai_data', 'sai_object'],
+    packages=find_packages()
 )

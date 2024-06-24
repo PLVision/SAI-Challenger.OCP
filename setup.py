@@ -1,7 +1,7 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-    name="sai-challenger-extensions",
+    name="saichallenger",
     version='0.1',
     description='SAI Challenger CLI & basic topologies',
     license='Apache 2.0',
@@ -11,7 +11,7 @@ setup(
     install_requires=[
         'click==8.0',
     ],
-    packages=['cli', 'topologies'],
+    packages=find_packages(),
     scripts=[
         'scripts/redis-cmd-listener.py'
     ],
